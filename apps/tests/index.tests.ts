@@ -17,7 +17,7 @@ describe("order validation", () => {
     const events = engine.submitOrder(command);
 
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe("INVALID QUANTY");
+    expect(events[0].type).toBe("INVALID_QUANTITY");
   });
 
   it("should reject duplicate order ids", () => {

@@ -1,5 +1,0 @@
-type OrderRejectedReson =
-  | "INVALID QUANTY"
-  | "DUPLICATE_ORDER_ID"
-  | "LIMIT_ORDER_MISSING_PRICE"
-  | "MARKET_ORDER_HAS_PRICE";
