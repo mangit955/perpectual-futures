@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum MarketStatus {
+  ACTIVE
+  PAUSED
+  SETTLEMENT_ONLY
+}
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum TimeInForce {
+  GTC
+  IOC
+}
+
+enum OrderStatus {
+  PENDING
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  REJECTED
+  EXPIRED
+}
+
+enum LiquidityRole {
+  MAKER
+  TAKER
+}
+
+enum PositionSide {
+  LONG
+  SHORT
+  FLAT
+}
+
+enum LedgerEntryType {
+  DEPOSIT
+  TRADING_FEE
+  REALIZED_PNL
+  FUNDING_PAYMENT
+  LIQUIDATION_LOSS
+  INSURANCE_FUND_TRANSFER
+  INSURANCE_FUND_CREDIT
+  ADL_SETTLEMENT
+}
+
+enum LiquidationStatus {
+  TRIGGERED
+  LIQUIDATING
+  CLOSED
+  INSURANCE_FUND_USED
+  ADL_USED
+  FAILED
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  passwordHash String
+  status       UserStatus       @default(ACTIVE)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  apiKeys      ApiKey[]
+  balances     Balance[]
+  ledgerEntries LedgerEntry[]
+  orders       Order[]
+  fills        Fill[]
+  positions    Position[]
+  fundingPayments FundingPayment[]
+  liquidations Liquidation[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  keyHash    String    @unique
+  name       String
+  disabledAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model Market {
+  id                   String       @id
+  symbol               String       @unique
+  baseAsset            String
+  quoteAsset           String
+  tickSize             Decimal      @db.Decimal(36, 18)
+  lotSize              Decimal      @db.Decimal(36, 18)
+  maxLeverage          Int
+  initialMarginRate    Decimal      @db.Decimal(36, 18)
+  maintenanceMarginRate Decimal     @db.Decimal(36, 18)
+  makerFeeRate         Decimal      @db.Decimal(36, 18)
+  takerFeeRate         Decimal      @db.Decimal(36, 18)
+  fundingIntervalHours Int          @default(8)
+  fundingRateCap       Decimal      @db.Decimal(36, 18)
+  status               MarketStatus @default(ACTIVE)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  orders               Order[]
+  fills                Fill[]
+  positions            Position[]
+  fundingPayments      FundingPayment[]
+  liquidations         Liquidation[]
+  snapshots            SnapshotMetadata[]
+
+  @@map("markets")
+}
+
+model Balance {
+  id        String   @id @default(cuid())
+  userId    String
+  asset     String
+  total     Decimal  @default(0) @db.Decimal(36, 18)
+  locked    Decimal  @default(0) @db.Decimal(36, 18)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, asset])
+  @@map("balances")
+}
+
+model LedgerEntry {
+  id           String          @id @default(cuid())
+  userId       String?
+  asset        String
+  type         LedgerEntryType
+  amount       Decimal         @db.Decimal(36, 18)
+  balanceAfter Decimal?        @db.Decimal(36, 18)
+  referenceId  String?
+  createdAt    DateTime        @default(now())
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([referenceId])
+  @@map("ledger_entries")
+}
+
+model Order {
+  id                String      @id
+  clientOrderId     String?
+  userId            String
+  marketId          String
+  side              OrderSide
+  type              OrderType
+  timeInForce       TimeInForce
+  price             Decimal?    @db.Decimal(36, 18)
+  quantity          Decimal     @db.Decimal(36, 18)
+  remainingQuantity Decimal     @db.Decimal(36, 18)
+  reduceOnly        Boolean     @default(false)
+  postOnly          Boolean     @default(false)
+  status            OrderStatus @default(PENDING)
+  rejectionReason   String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market            Market      @relation(fields: [marketId], references: [id], onDelete: Restrict)
+  fills             Fill[]
+
+  @@unique([userId, clientOrderId])
+  @@index([userId, marketId, createdAt])
+  @@index([marketId, status])
+  @@map("orders")
+}
+
+model Fill {
+  id          String        @id
+  tradeId     String
+  orderId     String
+  userId      String
+  marketId    String
+  side        OrderSide
+  liquidityRole LiquidityRole
+  price       Decimal       @db.Decimal(36, 18)
+  quantity    Decimal       @db.Decimal(36, 18)
+  notional    Decimal       @db.Decimal(36, 18)
+  fee         Decimal       @default(0) @db.Decimal(36, 18)
+  realizedPnl Decimal       @default(0) @db.Decimal(36, 18)
+  eventId     String
+  createdAt   DateTime      @default(now())
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market      Market        @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@unique([tradeId, orderId])
+  @@index([userId, marketId, createdAt])
+  @@index([eventId])
+  @@map("fills")
+}
+
+model Position {
+  id               String       @id @default(cuid())
+  userId           String
+  marketId         String
+  side             PositionSide @default(FLAT)
+  quantity         Decimal      @default(0) @db.Decimal(36, 18)
+  entryPrice       Decimal      @default(0) @db.Decimal(36, 18)
+  realizedPnl      Decimal      @default(0) @db.Decimal(36, 18)
+  unrealizedPnl    Decimal      @default(0) @db.Decimal(36, 18)
+  leverage         Int          @default(1)
+  liquidationPrice Decimal?     @db.Decimal(36, 18)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market           Market       @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, marketId])
+  @@map("positions")
+}
+
+model FundingPayment {
+  id               String   @id @default(cuid())
+  userId           String
+  marketId         String
+  positionQuantity Decimal  @db.Decimal(36, 18)
+  markPrice        Decimal  @db.Decimal(36, 18)
+  indexPrice       Decimal  @db.Decimal(36, 18)
+  fundingRate      Decimal  @db.Decimal(36, 18)
+  paymentAmount    Decimal  @db.Decimal(36, 18)
+  fundingTime      DateTime
+  eventId          String   @unique
+  createdAt        DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market           Market   @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@index([marketId, fundingTime])
+  @@map("funding_payments")
+}
+
+model Liquidation {
+  id                String            @id @default(cuid())
+  userId            String
+  marketId          String
+  positionQuantity  Decimal           @db.Decimal(36, 18)
+  markPrice         Decimal           @db.Decimal(36, 18)
+  maintenanceMargin Decimal           @db.Decimal(36, 18)
+  accountEquity     Decimal           @db.Decimal(36, 18)
+  status            LiquidationStatus
+  insuranceFundUsed Decimal           @default(0) @db.Decimal(36, 18)
+  adlUsed           Decimal           @default(0) @db.Decimal(36, 18)
+  eventId           String            @unique
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  market            Market            @relation(fields: [marketId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@map("liquidations")
+}
+
+model InsuranceFund {
+  id        String   @id @default(cuid())
+  asset     String   @unique
+  balance   Decimal  @default(0) @db.Decimal(36, 18)
+  updatedAt DateTime @updatedAt
+
+  @@map("insurance_funds")
+}
+
+model ProcessedEvent {
+  eventId     String   @id
+  eventType   String
+  stream      String?
+  streamId    String?
+  marketId    String?
+  raw         Json
+  processedAt DateTime @default(now())
+
+  @@index([marketId, processedAt])
+  @@map("processed_events")
+}
+
+model OutboxEvent {
+  id            String            @id @default(cuid())
+  aggregateType String
+  aggregateId   String
+  type          String
+  payload       Json
+  status        OutboxEventStatus @default(PENDING)
+  attempts      Int               @default(0)
+  lastError     String?
+  publishedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, createdAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}
+
+model SnapshotMetadata {
+  id                String   @id @default(cuid())
+  marketId          String
+  snapshotPath      String
+  engineSequence    BigInt
+  lastRedisStreamId String
+  createdAt         DateTime @default(now())
+  market            Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+
+  @@index([marketId, createdAt])
+  @@map("snapshot_metadata")
+}

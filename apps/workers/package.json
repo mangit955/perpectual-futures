@@ -1,10 +1,10 @@
 {
-  "name": "matching-engine",
-  "module": "index.ts",
+  "name": "workers",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "bun test",
+    "dev": "bun run src/index.ts",
     "check-types": "tsc --noEmit"
   },
   "devDependencies": {

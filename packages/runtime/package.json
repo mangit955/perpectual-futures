@@ -1,6 +1,6 @@
 {
-  "name": "matching-engine",
-  "module": "index.ts",
+  "name": "runtime",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {

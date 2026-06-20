@@ -1,0 +1,212 @@
+# API Documentation
+
+Status: implemented local HTTP API.
+
+Implemented app:
+
+```text
+apps/api
+```
+
+Run:
+
+```bash
+bun run apps/api/src/index.ts
+```
+
+The local API uses Bun's HTTP server because Express is not installed in the
+workspace. The route contract remains the same REST contract described here.
+Workers run in-process by default so orders are matched and persisted after
+submission.
+
+## Authentication
+
+### Register
+
+```text
+POST /auth/register
+```
+
+Request:
+
+```json
+{
+  "email": "trader@example.com",
+  "password": "long-password"
+}
+```
+
+Response:
+
+```json
+{
+  "userId": "user_123"
+}
+```
+
+### Login
+
+```text
+POST /auth/login
+```
+
+Response:
+
+```json
+{
+  "token": "jwt",
+  "userId": "user_123"
+}
+```
+
+## Markets
+
+```text
+GET /markets
+GET /markets/:marketId
+```
+
+Market fields come from `prisma/schema.prisma`:
+
+```json
+{
+  "id": "BTC-PERP",
+  "symbol": "BTC-PERP",
+  "baseAsset": "BTC",
+  "quoteAsset": "USDC",
+  "maxLeverage": 20,
+  "initialMarginRate": "0.05",
+  "maintenanceMarginRate": "0.005",
+  "makerFeeRate": "0.0002",
+  "takerFeeRate": "0.0005",
+  "fundingIntervalHours": 8,
+  "fundingRateCap": "0.00375",
+  "status": "ACTIVE"
+}
+```
+
+## Deposits
+
+```text
+POST /deposits
+```
+
+Request:
+
+```json
+{
+  "asset": "USDC",
+  "amount": "10000"
+}
+```
+
+Expected behavior:
+
+1. Insert ledger entry with type `DEPOSIT`.
+2. Increase `balances.total`.
+3. Return the updated balance.
+
+## Orders
+
+### Submit Order
+
+```text
+POST /orders
+```
+
+Request:
+
+```json
+{
+  "marketId": "BTC-PERP",
+  "side": "BUY",
+  "type": "LIMIT",
+  "quantity": "1.25",
+  "price": "65000",
+  "timeInForce": "GTC",
+  "reduceOnly": false,
+  "postOnly": true,
+  "clientOrderId": "client-123",
+  "leverage": 10
+}
+```
+
+Expected behavior:
+
+1. Validate request.
+2. Run risk pre-check through `packages/risk`.
+3. Insert `orders` row with status `PENDING`.
+4. Append `order.created` command to the runtime stream.
+5. Return `202 Accepted`.
+
+Response:
+
+```json
+{
+  "orderId": "order_123",
+  "status": "PENDING"
+}
+```
+
+### Cancel Order
+
+```text
+DELETE /orders/:orderId
+```
+
+Expected behavior:
+
+1. Verify ownership.
+2. Insert cancellation outbox event with type `order.cancelled`.
+3. Return `202 Accepted`.
+
+## Queries
+
+```text
+GET /balances
+GET /positions
+GET /orders
+GET /orders/:orderId
+GET /fills
+```
+
+These endpoints read PostgreSQL projections persisted by `packages/db`.
+In the local runtime they read the in-memory runtime store, which follows the
+same order/fill/position shapes.
+
+## Admin
+
+```text
+POST /admin/drain
+```
+
+Runs matching and persistence workers until local streams are caught up. The API
+server also runs this worker loop automatically, but this endpoint is useful in
+tests.
+
+## Errors
+
+Use stable error codes:
+
+```json
+{
+  "error": {
+    "code": "INSUFFICIENT_MARGIN",
+    "message": "Available margin is below required margin"
+  }
+}
+```
+
+Recommended codes:
+
+```text
+UNAUTHENTICATED
+FORBIDDEN
+MARKET_NOT_FOUND
+INVALID_ORDER
+INSUFFICIENT_MARGIN
+DUPLICATE_CLIENT_ORDER_ID
+ORDER_NOT_FOUND
+ORDER_NOT_OPEN
+INTERNAL_ERROR
+```

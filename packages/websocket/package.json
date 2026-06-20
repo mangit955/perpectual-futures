@@ -1,6 +1,6 @@
 {
-  "name": "matching-engine",
-  "module": "index.ts",
+  "name": "websocket",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {

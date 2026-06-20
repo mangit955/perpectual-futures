@@ -1,9 +1,10 @@
 {
-  "name": "matching-engine",
-  "module": "index.ts",
+  "name": "api",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
   "scripts": {
+    "dev": "bun run src/index.ts",
     "test": "bun test",
     "check-types": "tsc --noEmit"
   },

@@ -12,6 +12,8 @@ export interface NewOrderCommand {
   qtyLots: number;
   priceTicks?: number;
   timeInForce: TimeInForce;
+  reduceOnly?: boolean;
+  postOnly?: boolean;
   createdAt: number;
 }
 

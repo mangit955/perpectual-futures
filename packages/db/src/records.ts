@@ -1,0 +1,123 @@
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue =
+  | JsonPrimitive
+  | { [key: string]: JsonValue }
+  | JsonValue[];
+
+export type DurableOrderSide = "BUY" | "SELL";
+export type DurableOrderType = "MARKET" | "LIMIT";
+export type DurableTimeInForce = "GTC" | "IOC";
+export type DurableOrderStatus =
+  | "PENDING"
+  | "OPEN"
+  | "PARTIALLY_FILLED"
+  | "FILLED"
+  | "CANCELLED"
+  | "REJECTED"
+  | "EXPIRED";
+export type DurableLiquidityRole = "MAKER" | "TAKER";
+export type OutboxEventStatus = "PENDING" | "PUBLISHED" | "FAILED";
+export type DurableLiquidationStatus =
+  | "TRIGGERED"
+  | "LIQUIDATING"
+  | "CLOSED"
+  | "INSURANCE_FUND_USED"
+  | "ADL_USED"
+  | "FAILED";
+
+export interface OrderWrite {
+  id: string;
+  userId: string;
+  marketId: string;
+  side: DurableOrderSide;
+  type: DurableOrderType;
+  timeInForce: DurableTimeInForce;
+  price: string | null;
+  quantity: string;
+  remainingQuantity: string;
+  reduceOnly: boolean;
+  postOnly: boolean;
+  status: DurableOrderStatus;
+  rejectionReason?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OrderStatusUpdate {
+  orderId: string;
+  status: DurableOrderStatus;
+  remainingQuantity?: string;
+  rejectionReason?: string | null;
+  updatedAt: Date;
+}
+
+export interface FillWrite {
+  id: string;
+  tradeId: string;
+  orderId: string;
+  userId: string;
+  marketId: string;
+  side: DurableOrderSide;
+  liquidityRole: DurableLiquidityRole;
+  price: string;
+  quantity: string;
+  notional: string;
+  fee: string;
+  realizedPnl: string;
+  eventId: string;
+  createdAt: Date;
+}
+
+export interface FundingPaymentWrite {
+  id: string;
+  userId: string;
+  marketId: string;
+  positionQuantity: string;
+  markPrice: string;
+  indexPrice: string;
+  fundingRate: string;
+  paymentAmount: string;
+  fundingTime: Date;
+  eventId: string;
+  createdAt: Date;
+}
+
+export interface LiquidationWrite {
+  id: string;
+  userId: string;
+  marketId: string;
+  positionQuantity: string;
+  markPrice: string;
+  maintenanceMargin: string;
+  accountEquity: string;
+  status: DurableLiquidationStatus;
+  insuranceFundUsed: string;
+  adlUsed: string;
+  eventId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProcessedEventWrite {
+  eventId: string;
+  eventType: string;
+  stream?: string;
+  streamId?: string;
+  marketId?: string;
+  raw: JsonValue;
+  processedAt: Date;
+}
+
+export interface OutboxEventWrite {
+  id: string;
+  aggregateType: string;
+  aggregateId: string;
+  type: string;
+  payload: JsonValue;
+  status: OutboxEventStatus;
+  attempts: number;
+  lastError: string | null;
+  publishedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}

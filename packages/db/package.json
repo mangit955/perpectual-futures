@@ -1,0 +1,20 @@
+{
+  "name": "db",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "check-types": "tsc --noEmit",
+    "prisma:generate": "bunx prisma generate --schema ../../prisma/schema.prisma",
+    "prisma:migrate": "bunx prisma migrate dev --schema ../../prisma/schema.prisma",
+    "prisma:deploy": "bunx prisma migrate deploy --schema ../../prisma/schema.prisma",
+    "db:seed": "psql \"$DATABASE_URL\" -f ../../prisma/seed.sql"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
