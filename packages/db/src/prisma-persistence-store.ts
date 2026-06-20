@@ -1,7 +1,9 @@
 import type {
   FillWrite,
+  MarketWrite,
   OrderStatusUpdate,
   OrderWrite,
+  PositionWrite,
   ProcessedEventWrite,
 } from "./records";
 import type {
@@ -29,6 +31,19 @@ export interface PrismaTransactionLike {
     updateMany(args: {
       where: { id: string };
       data: Partial<OrderWrite> & { updatedAt: Date };
+    }): Promise<unknown>;
+  };
+  market: {
+    findUnique(args: { where: { id: string } }): Promise<unknown | null>;
+  };
+  position: {
+    findUnique(args: {
+      where: { userId_marketId: { userId: string; marketId: string } };
+    }): Promise<unknown | null>;
+    upsert(args: {
+      where: { userId_marketId: { userId: string; marketId: string } };
+      create: PositionWrite;
+      update: Omit<PositionWrite, "userId" | "marketId">;
     }): Promise<unknown>;
   };
   fill: {
@@ -68,6 +83,73 @@ class PrismaPersistenceTransaction implements PersistenceTransaction {
     await this.tx.processedEvent.create({
       data: event,
     });
+  }
+
+  async findMarket(marketId: string): Promise<MarketWrite | null> {
+    const row = await this.tx.market.findUnique({
+      where: { id: marketId },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    const market = row as {
+      id: string;
+      tickSize: unknown;
+      lotSize: unknown;
+      maxLeverage: number;
+      initialMarginRate: unknown;
+      maintenanceMarginRate: unknown;
+      makerFeeRate: unknown;
+      takerFeeRate: unknown;
+    };
+
+    return {
+      marketId: market.id,
+      tickSize: String(market.tickSize),
+      lotSize: String(market.lotSize),
+      maxLeverage: market.maxLeverage,
+      initialMarginRate: String(market.initialMarginRate),
+      maintenanceMarginRate: String(market.maintenanceMarginRate),
+      makerFeeRate: String(market.makerFeeRate),
+      takerFeeRate: String(market.takerFeeRate),
+    };
+  }
+
+  async findPosition(
+    userId: string,
+    marketId: string,
+  ): Promise<PositionWrite | null> {
+    const row = await this.tx.position.findUnique({
+      where: { userId_marketId: { userId, marketId } },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    const position = row as {
+      userId: string;
+      marketId: string;
+      side: PositionWrite["side"];
+      quantity: unknown;
+      entryPrice: unknown;
+      realizedPnl: unknown;
+      leverage: number;
+      updatedAt: Date;
+    };
+
+    return {
+      userId: position.userId,
+      marketId: position.marketId,
+      side: position.side,
+      quantity: String(position.quantity),
+      entryPrice: String(position.entryPrice),
+      realizedPnl: String(position.realizedPnl),
+      leverage: position.leverage,
+      updatedAt: position.updatedAt,
+    };
   }
 
   async upsertOrder(order: OrderWrite): Promise<void> {
@@ -112,6 +194,26 @@ class PrismaPersistenceTransaction implements PersistenceTransaction {
     await this.tx.fill.createMany({
       data: fills,
       skipDuplicates: true,
+    });
+  }
+
+  async upsertPosition(position: PositionWrite): Promise<void> {
+    await this.tx.position.upsert({
+      where: {
+        userId_marketId: {
+          userId: position.userId,
+          marketId: position.marketId,
+        },
+      },
+      create: position,
+      update: {
+        side: position.side,
+        quantity: position.quantity,
+        entryPrice: position.entryPrice,
+        realizedPnl: position.realizedPnl,
+        leverage: position.leverage,
+        updatedAt: position.updatedAt,
+      },
     });
   }
 }

@@ -14,7 +14,8 @@ packages/risk              Positions, margin, funding, liquidation, ADL
 packages/websocket         Subscription hub and websocket server factory
 packages/runtime           API/worker orchestration and stream bus
 apps/api                   Runnable backend API with in-process workers
-apps/workers               Worker loop entrypoint for adapter deployments
+apps/workers               Local and production worker loop entrypoint
+apps/market-data           Binance mark-price ingestion into Redis Streams
 ```
 
 ## Infrastructure
@@ -45,8 +46,8 @@ Seed data:
 prisma/seed.sql
 ```
 
-Prisma dependencies are not vendored in this workspace. After installing
-`prisma` and `@prisma/client`, run package scripts from `packages/db`.
+Prisma dependencies are installed at the workspace root. Run package scripts
+from `packages/db` when generating, migrating, or seeding the database.
 
 ## Verification
 
@@ -59,6 +60,7 @@ bunx tsc --noEmit -p packages/websocket/tsconfig.json
 bunx tsc --noEmit -p packages/runtime/tsconfig.json
 bunx tsc --noEmit -p apps/api/tsconfig.json
 bunx tsc --noEmit -p apps/workers/tsconfig.json
+bunx tsc --noEmit -p apps/market-data/tsconfig.json
 docker compose config
 git diff --check
 ```
@@ -74,6 +76,38 @@ so the local backend is functional without extra services. This keeps the
 learning setup simple. The stream abstraction mirrors Redis Streams closely
 enough that a Redis adapter can replace the in-memory stream bus for a
 multi-process deployment.
+
+## Run Production Wiring
+
+Start infrastructure, generate/migrate/seed Prisma, then run the production
+processes with real PostgreSQL, Redis Streams, and Binance market data:
+
+```bash
+docker compose up -d postgres redis
+cd packages/db
+bun run prisma:generate
+bun run prisma:deploy
+bun run db:seed
+```
+
+Example environment:
+
+```bash
+DATABASE_URL=postgresql://perp:perp@localhost:5432/perp_v3
+REDIS_URL=redis://localhost:6379
+JWT_SECRET=dev-secret-change-me
+SNAPSHOT_DIR=./snapshots
+BINANCE_WS_URL=wss://fstream.binance.com
+RUNTIME_MODE=production
+```
+
+Run:
+
+```bash
+bun run apps/api/src/index.ts
+bun run apps/workers/src/index.ts
+bun run apps/market-data/src/index.ts
+```
 
 ## Documentation
 

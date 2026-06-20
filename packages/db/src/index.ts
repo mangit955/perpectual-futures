@@ -37,9 +37,11 @@ export type {
   FundingPaymentWrite,
   JsonValue,
   LiquidationWrite,
+  MarketWrite,
   OrderStatusUpdate,
   OrderWrite,
   OutboxEventStatus,
   OutboxEventWrite,
+  PositionWrite,
   ProcessedEventWrite,
 } from "./records";

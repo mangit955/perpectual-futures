@@ -132,6 +132,7 @@ Error:
 
 ## Redis Integration
 
-The hub is transport-agnostic. A future Redis consumer should read streams such
-as `engine.events.BTC-PERP`, `price.updated`, and `funding.executed`, then call
-`hub.publish(...)`.
+The hub remains transport-agnostic. Production runtime code now writes
+`engine.events.{market}` and `price.updated` to Redis Streams; a websocket
+fanout process can read those streams and call `hub.publish(...)` without
+coupling subscription state to Redis client code.

@@ -68,6 +68,28 @@ export interface FillWrite {
   createdAt: Date;
 }
 
+export interface MarketWrite {
+  marketId: string;
+  tickSize: string;
+  lotSize: string;
+  maxLeverage: number;
+  initialMarginRate: string;
+  maintenanceMarginRate: string;
+  makerFeeRate: string;
+  takerFeeRate: string;
+}
+
+export interface PositionWrite {
+  userId: string;
+  marketId: string;
+  side: "LONG" | "SHORT" | "FLAT";
+  quantity: string;
+  entryPrice: string;
+  realizedPnl: string;
+  leverage: number;
+  updatedAt: Date;
+}
+
 export interface FundingPaymentWrite {
   id: string;
   userId: string;

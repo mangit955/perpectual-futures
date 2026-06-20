@@ -1,6 +1,6 @@
 # API Documentation
 
-Status: implemented local HTTP API.
+Status: implemented local HTTP API plus production PostgreSQL/JWT mode.
 
 Implemented app:
 
@@ -17,7 +17,8 @@ bun run apps/api/src/index.ts
 The local API uses Bun's HTTP server because Express is not installed in the
 workspace. The route contract remains the same REST contract described here.
 Workers run in-process by default so orders are matched and persisted after
-submission.
+submission. With `RUNTIME_MODE=production`, the same routes use PostgreSQL,
+JWT authentication, and outbox-backed Redis command publication.
 
 ## Authentication
 
@@ -58,6 +59,10 @@ Response:
   "userId": "user_123"
 }
 ```
+
+Production mode hashes passwords with `Bun.password` and signs JWTs with
+`JWT_SECRET`. Local mode keeps the lightweight in-memory token flow used by
+tests.
 
 ## Markets
 
@@ -136,8 +141,9 @@ Expected behavior:
 1. Validate request.
 2. Run risk pre-check through `packages/risk`.
 3. Insert `orders` row with status `PENDING`.
-4. Append `order.created` command to the runtime stream.
-5. Return `202 Accepted`.
+4. Insert an `order.created` outbox event in the same database transaction.
+5. The outbox publisher later appends the command to `engine.commands.{market}`.
+6. Return `202 Accepted`.
 
 Response:
 
@@ -182,7 +188,8 @@ POST /admin/drain
 
 Runs matching and persistence workers until local streams are caught up. The API
 server also runs this worker loop automatically, but this endpoint is useful in
-tests.
+tests. In production mode this endpoint is a no-op; run `apps/workers` for
+outbox, matching, persistence, snapshots, and Redis acknowledgements.
 
 ## Errors
 

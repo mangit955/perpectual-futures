@@ -1,20 +1,21 @@
 # Perpetual Futures Exchange Backend Architecture
 
-Status: Step 1 architecture document only.
+Status: implemented educational backend with local in-memory mode and
+production PostgreSQL/Redis/Binance wiring.
 
 This document describes the target backend architecture for a centralized
 perpetual futures exchange inspired by Backpack Exchange. It is intentionally
 production-style but educational: clear services, explicit data flow, simple
 failure recovery, and tests around every important behavior.
 
-No implementation code is generated in this step. Each phase below must be
-approved before code for that phase is written.
+The repository keeps the original architecture notes and now includes concrete
+runtime adapters for the production path.
 
 ## Goals
 
 - Backend-only perpetual futures exchange.
-- TypeScript, Node.js, Express, PostgreSQL, Prisma, Redis Streams, Jest or
-  Vitest, and Docker.
+- TypeScript, Bun HTTP server, PostgreSQL, Prisma, Redis Streams, Bun tests,
+  and Docker.
 - In-memory matching engine with efficient price-time priority.
 - PostgreSQL as the durable business source of truth.
 - Redis Streams for ordered command and event queues.
@@ -43,20 +44,19 @@ The current repository is a Turborepo workspace with a small
 `packages/matching-engine` stub. The implementation should grow from that
 shape instead of creating an unrelated layout.
 
-Planned high-level structure:
+High-level structure:
 
 ```text
 apps/
-  api/                  Express HTTP API
+  api/                  Bun HTTP API
   market-data/          Binance mark/index price ingestion and funding ticks
-  websocket/            WebSocket subscriptions and fanout
   workers/              Persistence, outbox, liquidation, funding workers
 packages/
   matching-engine/      In-memory orderbook and matching logic
   risk/                 Margin, PnL, liquidation, ADL calculations
   db/                   Prisma client, schema, seed scripts
-  redis/                Redis stream helpers and event contracts
-  shared/               Shared types, decimal helpers, IDs, config
+  websocket/            WebSocket subscriptions and fanout
+  runtime/              Runtime orchestration and Redis stream adapters
 prisma/
   schema.prisma
   migrations/
@@ -969,6 +969,9 @@ SNAPSHOT_DIR
 SNAPSHOT_INTERVAL_MS
 FUNDING_INTERVAL_HOURS
 DEFAULT_COLLATERAL_ASSET
+RUNTIME_MODE
+WORKER_ROLE
+MARKET_DATA_SYMBOLS
 ```
 
 Local Docker services:
@@ -1190,14 +1193,9 @@ than separate long and short subaccounts and matches many exchange UIs.
 Open books are in memory for speed and clarity. Snapshots make restart fast;
 Redis replay after the snapshot makes restart correct.
 
-## Approval Gate
+## Current Runtime Modes
 
-Step 1 is complete when this architecture document is accepted.
-
-Next step after approval:
-
-```text
-Phase 1: Core matching engine
-```
-
-No Phase 1 implementation should begin until explicitly approved.
+- Local mode is the default and uses `ExchangeRuntime`, `RuntimeStore`, and
+  `InMemoryStreamBus` for fast tests and learning.
+- Production mode uses PostgreSQL, JWT auth, outbox rows, Redis Streams,
+  production workers, file snapshots, and Binance market data.

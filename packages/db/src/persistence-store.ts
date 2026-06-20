@@ -1,7 +1,9 @@
 import type {
   FillWrite,
+  MarketWrite,
   OrderStatusUpdate,
   OrderWrite,
+  PositionWrite,
   ProcessedEventWrite,
 } from "./records";
 
@@ -14,7 +16,10 @@ export interface PersistenceStore {
 export interface PersistenceTransaction {
   findProcessedEvent(eventId: string): Promise<ProcessedEventWrite | null>;
   createProcessedEvent(event: ProcessedEventWrite): Promise<void>;
+  findMarket(marketId: string): Promise<MarketWrite | null>;
+  findPosition(userId: string, marketId: string): Promise<PositionWrite | null>;
   upsertOrder(order: OrderWrite): Promise<void>;
   updateOrderStatus(update: OrderStatusUpdate): Promise<void>;
   createFills(fills: FillWrite[]): Promise<void>;
+  upsertPosition(position: PositionWrite): Promise<void>;
 }

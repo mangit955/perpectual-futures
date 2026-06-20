@@ -1,11 +1,18 @@
 import { ExchangeRuntime, type SubmitOrderInput } from "../../../packages/runtime/src/index";
+import {
+  InMemoryApiRuntime,
+  type ApiRuntime,
+} from "../../../packages/runtime/src/index";
 
 export interface ApiAppOptions {
   runtime?: ExchangeRuntime;
+  apiRuntime?: ApiRuntime;
 }
 
 export function createApiApp(options: ApiAppOptions = {}) {
-  const runtime = options.runtime ?? new ExchangeRuntime();
+  const runtime =
+    options.apiRuntime ??
+    new InMemoryApiRuntime(options.runtime ?? new ExchangeRuntime());
 
   async function fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -18,34 +25,40 @@ export function createApiApp(options: ApiAppOptions = {}) {
 
       if (method === "POST" && url.pathname === "/auth/register") {
         const body = await readJson<{ email: string; password: string }>(request);
-        const user = runtime.register(body.email, body.password);
+        const user = await runtime.register(body.email, body.password);
         return json({ userId: user.id }, 201);
       }
 
       if (method === "POST" && url.pathname === "/auth/login") {
         const body = await readJson<{ email: string; password: string }>(request);
-        return json(runtime.login(body.email, body.password));
+        return json(await runtime.login(body.email, body.password));
       }
 
       if (method === "GET" && url.pathname === "/markets") {
-        return json([...runtime.store.markets.values()]);
+        return json(await runtime.listMarkets());
       }
 
       const marketMatch = url.pathname.match(/^\/markets\/([^/]+)$/);
       if (method === "GET" && marketMatch) {
-        const market = runtime.store.markets.get(marketMatch[1] ?? "");
+        const market = await runtime.getMarket(marketMatch[1] ?? "");
         return market ? json(market) : jsonError("MARKET_NOT_FOUND", 404);
       }
 
       if (method === "POST" && url.pathname === "/deposits") {
-        const user = runtime.store.requireUser(authToken(request));
-        const body = await readJson<{ asset: string; amount: number }>(request);
-        return json(runtime.deposit(user.id, body.asset, body.amount), 201);
+        const user = await runtime.authenticate(authToken(request));
+        const body = await readJson<{ asset: string; amount: number | string }>(request);
+        return json(await runtime.deposit(user.id, body.asset, Number(body.amount)), 201);
       }
 
       if (method === "POST" && url.pathname === "/orders") {
-        const user = runtime.store.requireUser(authToken(request));
-        const body = await readJson<Omit<SubmitOrderInput, "userId">>(request);
+        const user = await runtime.authenticate(authToken(request));
+        const body = normalizeOrderInput(
+          await readJson<Omit<SubmitOrderInput, "userId"> & {
+            quantity: number | string;
+            price?: number | string;
+            leverage?: number | string;
+          }>(request),
+        );
         const order = await runtime.submitOrder({
           ...body,
           userId: user.id,
@@ -55,9 +68,9 @@ export function createApiApp(options: ApiAppOptions = {}) {
 
       const cancelMatch = url.pathname.match(/^\/orders\/([^/]+)$/);
       if (method === "DELETE" && cancelMatch) {
-        const user = runtime.store.requireUser(authToken(request));
+        const user = await runtime.authenticate(authToken(request));
         const orderId = cancelMatch[1] ?? "";
-        const order = runtime.store.orders.get(orderId);
+        const order = await runtime.getOrder(user.id, orderId);
 
         if (!order) {
           return jsonError("ORDER_NOT_FOUND", 404);
@@ -68,39 +81,29 @@ export function createApiApp(options: ApiAppOptions = {}) {
       }
 
       if (method === "GET" && url.pathname === "/balances") {
-        const user = runtime.store.requireUser(authToken(request));
-        return json(
-          [...runtime.store.balances.values()].filter((balance) => balance.userId === user.id),
-        );
+        const user = await runtime.authenticate(authToken(request));
+        return json(await runtime.listBalances(user.id));
       }
 
       if (method === "GET" && url.pathname === "/positions") {
-        const user = runtime.store.requireUser(authToken(request));
-        return json(
-          [...runtime.store.positions.values()].filter((position) => position.userId === user.id),
-        );
+        const user = await runtime.authenticate(authToken(request));
+        return json(await runtime.listPositions(user.id));
       }
 
       if (method === "GET" && url.pathname === "/orders") {
-        const user = runtime.store.requireUser(authToken(request));
-        return json(
-          [...runtime.store.orders.values()].filter((order) => order.userId === user.id),
-        );
+        const user = await runtime.authenticate(authToken(request));
+        return json(await runtime.listOrders(user.id));
       }
 
       if (method === "GET" && cancelMatch) {
-        const user = runtime.store.requireUser(authToken(request));
-        const order = runtime.store.orders.get(cancelMatch[1] ?? "");
-        return order && order.userId === user.id
-          ? json(order)
-          : jsonError("ORDER_NOT_FOUND", 404);
+        const user = await runtime.authenticate(authToken(request));
+        const order = await runtime.getOrder(user.id, cancelMatch[1] ?? "");
+        return order ? json(order) : jsonError("ORDER_NOT_FOUND", 404);
       }
 
       if (method === "GET" && url.pathname === "/fills") {
-        const user = runtime.store.requireUser(authToken(request));
-        return json(
-          [...runtime.store.fills.values()].filter((fill) => fill.userId === user.id),
-        );
+        const user = await runtime.authenticate(authToken(request));
+        return json(await runtime.listFills(user.id));
       }
 
       if (method === "POST" && url.pathname === "/admin/drain") {
@@ -137,4 +140,19 @@ function json(data: unknown, status = 200): Response {
 
 function jsonError(code: string, status: number, message = code): Response {
   return json({ error: { code, message } }, status);
+}
+
+function normalizeOrderInput(
+  body: Omit<SubmitOrderInput, "userId"> & {
+    quantity: number | string;
+    price?: number | string;
+    leverage?: number | string;
+  },
+): Omit<SubmitOrderInput, "userId"> {
+  return {
+    ...body,
+    quantity: Number(body.quantity),
+    price: body.price == null ? undefined : Number(body.price),
+    leverage: body.leverage == null ? undefined : Number(body.leverage),
+  };
 }

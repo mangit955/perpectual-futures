@@ -11,6 +11,7 @@ Files:
 ```text
 packages/matching-engine/src/recovery.ts
 packages/matching-engine/recovery.test.ts
+packages/runtime/src/production-workers.ts
 ```
 
 ## Problem
@@ -125,11 +126,14 @@ if (snapshot) {
 
 ## Redis Worker Responsibility
 
-The implemented recovery helper expects `eventsAfterSnapshot` as input. A future
-Redis integration should:
+The production matching worker wires the recovery helper to Redis Streams:
 
 1. Read snapshot metadata.
-2. `XREAD` from `lastRedisStreamId`.
+2. `XRANGE`/read stream entries after `lastRedisStreamId`.
 3. Decode engine events.
 4. Pass them to `recoverOrderBookFromSnapshot`.
 5. Start normal command consumption after replay completes.
+
+When `SNAPSHOT_INTERVAL_MS` is configured, the production matching worker writes
+fresh snapshots and inserts `snapshot_metadata` rows after successful command
+processing.

@@ -95,6 +95,8 @@ describe("PersistenceService", () => {
         "fills.create_many",
         "orders.update_maker_after_trade",
         "orders.update_taker_after_trade",
+        "positions.upsert_maker_after_trade",
+        "positions.upsert_taker_after_trade",
         "processed_events.create",
       ],
     });
@@ -123,6 +125,16 @@ describe("PersistenceService", () => {
     expect(store.state.orders.get("bid-1")).toMatchObject({
       status: "FILLED",
       remainingQuantity: "0",
+    });
+    expect(store.state.positions.get("maker:BTC-PERP")).toMatchObject({
+      quantity: "-5",
+      entryPrice: "100",
+      side: "SHORT",
+    });
+    expect(store.state.positions.get("taker:BTC-PERP")).toMatchObject({
+      quantity: "5",
+      entryPrice: "100",
+      side: "LONG",
     });
     expect(store.state.processedEvents.size).toBe(1);
   });

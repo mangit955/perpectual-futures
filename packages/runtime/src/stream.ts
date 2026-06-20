@@ -5,6 +5,16 @@ export interface StreamBus {
   readAfter<T>(stream: string, afterId?: string, limit?: number): Promise<StreamMessage<T>[]>;
 }
 
+export interface AckingStreamBus extends StreamBus {
+  readGroup<T>(
+    stream: string,
+    group: string,
+    consumer: string,
+    options?: { count?: number; blockMs?: number },
+  ): Promise<StreamMessage<T>[]>;
+  ack(stream: string, group: string, ids: string[]): Promise<void>;
+}
+
 export class InMemoryStreamBus implements StreamBus {
   private readonly streams = new Map<string, StreamMessage<unknown>[]>();
   private sequence = 0;
@@ -45,3 +55,5 @@ export function commandStream(market: string): string {
 export function eventStream(market: string): string {
   return `engine.events.${market}`;
 }
+
+export const PRICE_UPDATED_STREAM = "price.updated";

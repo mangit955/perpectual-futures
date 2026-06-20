@@ -1,4 +1,12 @@
 import type { EngineEvent, TradeExecuted } from "../../matching-engine/index";
+import {
+  applyFillToPosition,
+  emptyPosition,
+  positionSide,
+  type FillInput,
+  type MarketRiskConfig,
+  type Position,
+} from "../../risk/src/index";
 import type {
   DurableOrderSide,
   DurableOrderStatus,
@@ -6,7 +14,9 @@ import type {
   DurableTimeInForce,
   FillWrite,
   JsonValue,
+  MarketWrite,
   OrderWrite,
+  PositionWrite,
   ProcessedEventWrite,
 } from "./records";
 import type {
@@ -121,13 +131,54 @@ export class PersistenceService {
           remainingQuantity: decimalString(event.takerOrderRemainingQtyLots),
           updatedAt: new Date(event.timestamp),
         });
+        await applyTradeToPositions(tx, event);
         return [
           "fills.create_many",
           "orders.update_maker_after_trade",
           "orders.update_taker_after_trade",
+          "positions.upsert_maker_after_trade",
+          "positions.upsert_taker_after_trade",
         ];
     }
   }
+}
+
+async function applyTradeToPositions(
+  tx: PersistenceTransaction,
+  event: TradeExecuted,
+): Promise<void> {
+  const market = await tx.findMarket(event.market);
+
+  if (!market) {
+    throw new Error(`market not found: ${event.market}`);
+  }
+
+  await applyRoleFillToPosition(tx, event, "MAKER", marketToRiskConfig(market));
+  await applyRoleFillToPosition(tx, event, "TAKER", marketToRiskConfig(market));
+}
+
+async function applyRoleFillToPosition(
+  tx: PersistenceTransaction,
+  event: TradeExecuted,
+  role: "MAKER" | "TAKER",
+  market: MarketRiskConfig,
+): Promise<void> {
+  const userId = role === "MAKER" ? event.makerUserId : event.takerUserId;
+  const side = role === "MAKER" ? event.makerSide : event.takerSide;
+  const existing = positionFromWrite(
+    await tx.findPosition(userId, event.market),
+  ) ?? emptyPosition(userId, event.market, 10);
+  const fill: FillInput = {
+    userId,
+    marketId: event.market,
+    side: side === "buy" ? "BUY" : "SELL",
+    price: event.priceTicks,
+    quantity: event.qtyLots,
+    fee: 0,
+  };
+  const result = applyFillToPosition(existing, fill, market);
+
+  await tx.upsertPosition(positionToWrite(result.next, new Date(event.timestamp)));
 }
 
 function processedEventFromEngineEvent(
@@ -228,6 +279,45 @@ function orderStatusFromRemaining(remainingQtyLots: number): DurableOrderStatus 
 
 function decimalString(value: number): string {
   return String(value);
+}
+
+function marketToRiskConfig(market: MarketWrite): MarketRiskConfig {
+  return {
+    marketId: market.marketId,
+    tickSize: Number(market.tickSize),
+    lotSize: Number(market.lotSize),
+    maxLeverage: market.maxLeverage,
+    initialMarginRate: Number(market.initialMarginRate),
+    maintenanceMarginRate: Number(market.maintenanceMarginRate),
+    makerFeeRate: Number(market.makerFeeRate),
+    takerFeeRate: Number(market.takerFeeRate),
+  };
+}
+
+function positionFromWrite(position: PositionWrite | null): Position | null {
+  return position
+    ? {
+        userId: position.userId,
+        marketId: position.marketId,
+        quantity: Number(position.quantity),
+        entryPrice: Number(position.entryPrice),
+        realizedPnl: Number(position.realizedPnl),
+        leverage: position.leverage,
+      }
+    : null;
+}
+
+function positionToWrite(position: Position, updatedAt: Date): PositionWrite {
+  return {
+    userId: position.userId,
+    marketId: position.marketId,
+    side: positionSide(position),
+    quantity: decimalString(position.quantity),
+    entryPrice: decimalString(position.entryPrice),
+    realizedPnl: decimalString(position.realizedPnl),
+    leverage: position.leverage,
+    updatedAt,
+  };
 }
 
 function toJsonValue(value: unknown): JsonValue {

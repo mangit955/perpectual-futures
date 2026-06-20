@@ -18,6 +18,7 @@ bunx tsc --noEmit -p packages/websocket/tsconfig.json
 bunx tsc --noEmit -p packages/runtime/tsconfig.json
 bunx tsc --noEmit -p apps/api/tsconfig.json
 bunx tsc --noEmit -p apps/workers/tsconfig.json
+bunx tsc --noEmit -p apps/market-data/tsconfig.json
 ```
 
 ## Docker Config Check
@@ -53,8 +54,10 @@ Persistence:
 
 - order event persistence
 - fill persistence
+- position projection persistence after trades
 - processed-event idempotency
 - outbox helper
+- outbox publisher success and failure paths
 - funding payment mapper
 - liquidation mapper
 
@@ -86,7 +89,15 @@ Recovery:
 Runtime/API:
 
 - API register/login/deposit/order/fills flow
+- JWT signing and verification
+- Redis stream adapter command shape
 - stream command processing
 - matching worker
 - persistence worker
 - position updates after trades
+
+Market data:
+
+- Binance mark-price message parsing
+- unknown symbol and malformed payload handling
+- combined stream URL construction

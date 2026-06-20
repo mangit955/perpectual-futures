@@ -1,7 +1,9 @@
 import type {
   FillWrite,
+  MarketWrite,
   OrderStatusUpdate,
   OrderWrite,
+  PositionWrite,
   ProcessedEventWrite,
 } from "../records";
 import type {
@@ -13,6 +15,8 @@ export interface InMemoryPersistenceState {
   orders: Map<string, OrderWrite>;
   fills: Map<string, FillWrite>;
   processedEvents: Map<string, ProcessedEventWrite>;
+  markets: Map<string, MarketWrite>;
+  positions: Map<string, PositionWrite>;
 }
 
 export class InMemoryPersistenceStore implements PersistenceStore {
@@ -20,6 +24,22 @@ export class InMemoryPersistenceStore implements PersistenceStore {
     orders: new Map(),
     fills: new Map(),
     processedEvents: new Map(),
+    markets: new Map([
+      [
+        "BTC-PERP",
+        {
+          marketId: "BTC-PERP",
+          tickSize: "0.1",
+          lotSize: "0.001",
+          maxLeverage: 20,
+          initialMarginRate: "0.05",
+          maintenanceMarginRate: "0.005",
+          makerFeeRate: "0.0002",
+          takerFeeRate: "0.0005",
+        },
+      ],
+    ]),
+    positions: new Map(),
   };
 
   async transaction<T>(
@@ -31,12 +51,18 @@ export class InMemoryPersistenceStore implements PersistenceStore {
     this.state.orders = draft.orders;
     this.state.fills = draft.fills;
     this.state.processedEvents = draft.processedEvents;
+    this.state.markets = draft.markets;
+    this.state.positions = draft.positions;
 
     return result;
   }
 
   seedOrder(order: OrderWrite): void {
     this.state.orders.set(order.id, cloneOrder(order));
+  }
+
+  seedMarket(market: MarketWrite): void {
+    this.state.markets.set(market.marketId, { ...market });
   }
 }
 
@@ -55,6 +81,19 @@ class InMemoryPersistenceTransaction implements PersistenceTransaction {
     }
 
     this.state.processedEvents.set(event.eventId, cloneProcessedEvent(event));
+  }
+
+  async findMarket(marketId: string): Promise<MarketWrite | null> {
+    const market = this.state.markets.get(marketId);
+    return market ? { ...market } : null;
+  }
+
+  async findPosition(
+    userId: string,
+    marketId: string,
+  ): Promise<PositionWrite | null> {
+    const position = this.state.positions.get(positionKey(userId, marketId));
+    return position ? clonePosition(position) : null;
   }
 
   async upsertOrder(order: OrderWrite): Promise<void> {
@@ -88,6 +127,13 @@ class InMemoryPersistenceTransaction implements PersistenceTransaction {
       }
     }
   }
+
+  async upsertPosition(position: PositionWrite): Promise<void> {
+    this.state.positions.set(
+      positionKey(position.userId, position.marketId),
+      clonePosition(position),
+    );
+  }
 }
 
 function cloneState(state: InMemoryPersistenceState): InMemoryPersistenceState {
@@ -102,6 +148,15 @@ function cloneState(state: InMemoryPersistenceState): InMemoryPersistenceState {
       [...state.processedEvents.entries()].map(([id, event]) => [
         id,
         cloneProcessedEvent(event),
+      ]),
+    ),
+    markets: new Map(
+      [...state.markets.entries()].map(([id, market]) => [id, { ...market }]),
+    ),
+    positions: new Map(
+      [...state.positions.entries()].map(([id, position]) => [
+        id,
+        clonePosition(position),
       ]),
     ),
   };
@@ -127,4 +182,15 @@ function cloneProcessedEvent(event: ProcessedEventWrite): ProcessedEventWrite {
     ...event,
     processedAt: new Date(event.processedAt),
   };
+}
+
+function clonePosition(position: PositionWrite): PositionWrite {
+  return {
+    ...position,
+    updatedAt: new Date(position.updatedAt),
+  };
+}
+
+function positionKey(userId: string, marketId: string): string {
+  return `${userId}:${marketId}`;
 }

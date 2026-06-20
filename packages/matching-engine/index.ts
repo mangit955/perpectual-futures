@@ -34,6 +34,10 @@ export class MatchingEngine {
     return this.bookFor(market).snapshot(depth);
   }
 
+  restoreBook(market: string, orderBook: OrderBook): void {
+    this.booksByMarket.set(market, orderBook);
+  }
+
   private bookFor(market: string): OrderBook {
     let book = this.booksByMarket.get(market);
 
