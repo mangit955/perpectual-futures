@@ -68,15 +68,18 @@ export function Navbar() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 transition-all duration-300",
-        scrolled
-          ? "border-b border-white/[0.08] bg-[#09090b]/72 shadow-[0_1px_0_rgba(255,255,255,0.03)] backdrop-blur-xl"
-          : "border-b border-transparent bg-transparent",
+        "fixed inset-x-0 z-50 px-[calc(64px+1.5rem)] transition-all duration-300 sm:px-[calc(64px+2rem)] lg:px-[calc(64px+3.25rem)] xl:px-[calc(72px+3.5rem)]",
+        scrolled ? "top-3" : "top-0",
       )}
     >
       <nav
         aria-label="Primary"
-        className="mx-auto flex h-20 max-w-[1440px] items-center justify-between px-5 sm:px-8 lg:px-12"
+        className={cn(
+          "flex w-full items-center justify-between px-5 transition-all duration-300 sm:px-7 lg:px-8",
+          scrolled
+            ? "h-16 rounded-[1.35rem] border border-white/[0.11] bg-[#09090b]/86 shadow-[0_18px_60px_rgba(0,0,0,0.34),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-2xl"
+            : "h-20 border border-transparent bg-transparent",
+        )}
       >
         <div className="flex min-w-0 items-center gap-8">
           <a
@@ -160,12 +163,15 @@ export function Navbar() {
         {mobileOpen ? (
           <motion.div
             animate={{ opacity: 1, y: 0 }}
-            className="border-t border-white/[0.08] bg-[#09090b]/96 px-5 py-5 shadow-2xl backdrop-blur-xl lg:hidden"
+            className={cn(
+              "mt-2 border border-white/[0.09] bg-[#09090b]/96 px-5 py-5 shadow-2xl backdrop-blur-xl lg:hidden",
+              scrolled ? "rounded-[1.25rem]" : "rounded-b-[1.25rem]",
+            )}
             exit={{ opacity: 0, y: -8 }}
             initial={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
           >
-            <div className="mx-auto flex max-w-[1440px] flex-col gap-1">
+            <div className="flex w-full flex-col gap-1">
               {navItems.map((item) => (
                 <a
                   className={cn(

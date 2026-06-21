@@ -7,7 +7,10 @@ export const SectionWrapper = forwardRef<HTMLElement, {
   id?: string;
 }>(({ children, className, id }, ref) => (
   <section
-    className={cn("relative isolate overflow-hidden px-4 py-24 sm:px-6 lg:px-10", className)}
+    className={cn(
+      "relative isolate overflow-hidden px-[calc(64px+1.5rem)] py-24 sm:px-[calc(64px+2rem)] lg:px-[calc(64px+3.25rem)] xl:px-[calc(72px+3.5rem)]",
+      className,
+    )}
     id={id}
     ref={ref}
   >

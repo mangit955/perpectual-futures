@@ -30,12 +30,12 @@ import {
   RadioTower,
   Server,
   ShieldCheck,
-  Sparkles,
   Terminal,
   Workflow,
   Zap,
 } from "lucide-react";
 import { Navbar } from "@/components/landing/navbar";
+import { LayoutFrame, SectionDivider } from "@/components/layout/layout-frame";
 import { SectionWrapper } from "@/components/landing/section-wrapper";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CanvasText } from "../ui/canvas-text";
+import { PulsatingButton } from "../ui/pulsating-button";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = `${githubHref}/tree/main/docs`;
@@ -191,17 +192,26 @@ const roadmap = [
 
 export function LandingPage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#09090b] text-[#fafafa]">
-      <Navbar />
-      <HeroSection />
-      <ArchitectureSection />
-      <FeaturesSection />
-      <PerformanceSection />
-      <DeveloperSection />
-      <RoadmapSection />
-      <CtaSection />
-      <Footer />
-    </main>
+    <LayoutFrame>
+      <main className="relative min-h-screen overflow-hidden bg-[#09090b] text-[#fafafa]">
+        <Navbar />
+        <HeroSection />
+        <SectionDivider />
+        <ArchitectureSection />
+        <SectionDivider />
+        <FeaturesSection />
+        <SectionDivider />
+        <PerformanceSection />
+        <SectionDivider />
+        <DeveloperSection />
+        <SectionDivider />
+        <RoadmapSection />
+        <SectionDivider />
+        <CtaSection />
+        <SectionDivider />
+        <Footer />
+      </main>
+    </LayoutFrame>
   );
 }
 
@@ -219,7 +229,14 @@ function HeroSection() {
           className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#27272a] bg-[#111113] px-3 py-1.5 text-xs font-medium text-zinc-400 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset]"
           variants={fadeUp}
         >
-          <Sparkles className="h-3.5 w-3.5 text-blue-500" aria-hidden="true" />
+          <PulsatingButton
+            aria-label="Live status"
+            pulseColor="#22c55e"
+            duration="2.5s"
+            className="h-2 w-2 rounded-full bg-yellow-500 p-0 text-transparent shadow-none pointer-events-none"
+          >
+            .
+          </PulsatingButton>
           Beta V1
         </motion.div>
         <motion.h1
@@ -323,7 +340,7 @@ function ArchitectureSection() {
 
   return (
     <SectionWrapper
-      className="border-y border-[#27272a] bg-[#111113]/[0.18]"
+      className="bg-[#111113]/[0.18]"
       id="architecture"
       ref={sectionRef}
     >
@@ -514,7 +531,7 @@ function FeaturesSection() {
 function PerformanceSection() {
   return (
     <SectionWrapper
-      className="border-y border-[#27272a] bg-[#111113]/25"
+      className="bg-[#111113]/25"
       id="performance"
     >
       <div className="mx-auto max-w-7xl">
@@ -724,7 +741,7 @@ function CodePanel() {
 function RoadmapSection() {
   return (
     <SectionWrapper
-      className="border-y border-[#27272a] bg-[#111113]/[0.14]"
+      className="bg-[#111113]/[0.14]"
       id="roadmap"
     >
       <div className="mx-auto max-w-5xl">
@@ -808,8 +825,8 @@ function Footer() {
   ];
 
   return (
-    <footer className="border-t border-[#27272a] px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    <footer className="px-[calc(64px+1.5rem)] py-10 sm:px-[calc(64px+2rem)] lg:px-[calc(64px+3.25rem)] xl:px-[calc(72px+3.5rem)]">
+      <div className="flex w-full flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3 text-sm font-semibold">
             <span className="flex h-8 w-8 items-center justify-center rounded-md border border-[#27272a] bg-[#111113]">
