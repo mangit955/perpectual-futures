@@ -37,13 +37,7 @@ import { Navbar } from "@/components/landing/navbar";
 import { LayoutFrame, SectionDivider } from "@/components/layout/layout-frame";
 import { SectionWrapper } from "@/components/landing/section-wrapper";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { CanvasText } from "../ui/canvas-text";
 import { PulsatingButton } from "../ui/pulsating-button";
@@ -110,40 +104,52 @@ const architectureStages = [
 
 const features = [
   {
-    title: "Event Sourced Matching",
+    title: "Event sourcing",
     description:
-      "Commands and engine events move through ordered streams, keeping execution deterministic and auditable.",
+      "Commands and fills are persisted as ordered events execution.",
     icon: Workflow,
   },
   {
-    title: "Snapshot Recovery",
+    title: "Snapshot recovery",
     description:
-      "The orderbook restores from periodic snapshots and replays only the events needed to catch up.",
+      "Orderbooks restore from compact snapshots & replay only the stream events.",
     icon: Database,
   },
   {
-    title: "Low Latency Execution",
+    title: "Low-latency matching",
     description:
-      "The matching engine owns the in-memory book and avoids database writes in the hot path.",
+      "The hot path keeps books in memory and avoids relational writes.",
     icon: Zap,
   },
   {
-    title: "Real-Time Market Data",
+    title: "Live market data",
     description:
-      "Public and private streams fan out trades, orderbook deltas, positions, and mark prices.",
+      "Trade prints, orderbook deltas, account updates, and mark prices stream in real time.",
     icon: RadioTower,
   },
   {
-    title: "API First",
+    title: "API-first access",
     description:
-      "REST order entry, stable error codes, and predictable payloads make integrations straightforward.",
+      "Stable REST payloads, explicit errors, and predictable contracts keep integrations clean.",
     icon: FileCode2,
   },
   {
-    title: "Risk Engine",
+    title: "Risk controls",
     description:
-      "Margin, funding, liquidation, and insurance fund logic are separated and covered by focused tests.",
+      "Margin, funding, liquidation, and insurance workflows stay isolated from order matching.",
     icon: ShieldCheck,
+  },
+  {
+    title: "Service boundaries",
+    description:
+      "Each service owns a focused responsibility, making the exchange easier to scale.",
+    icon: Boxes,
+  },
+  {
+    title: "Fast observability",
+    description:
+      "Stream lag, health checks, worker state, and market-level signals are built for quick diagnosis.",
+    icon: Gauge,
   },
 ];
 
@@ -489,16 +495,18 @@ function ArchitectureDiagram({
 }
 
 function FeaturesSection() {
+  const [activeFeature, setActiveFeature] = useState<string | null>(null);
+
   return (
-    <SectionWrapper id="features">
-      <div className="mx-auto max-w-7xl">
+    <SectionWrapper className="bg-[#09090b]" id="features">
+      <div className="mx-auto max-w-[1060px]">
         <SectionHeading
           eyebrow="Features"
           title="The parts that matter in a serious exchange backend."
           description="Built from simple service boundaries, explicit persistence, and a matching engine that can be reasoned about under load."
         />
         <motion.div
-          className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          className="mx-auto mt-12 grid max-w-[840px] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           initial="hidden"
           variants={stagger}
           viewport={{ once: true, amount: 0.2 }}
@@ -506,17 +514,87 @@ function FeaturesSection() {
         >
           {features.map((feature) => {
             const Icon = feature.icon;
+            const isActive = activeFeature === feature.title;
 
             return (
               <motion.div key={feature.title} variants={fadeUp}>
-                <Card className="group relative h-full overflow-hidden transition-all duration-300 before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:-translate-y-1 hover:border-white/[0.16] hover:shadow-[0_22px_70px_rgba(0,0,0,0.30)] hover:before:opacity-100">
-                  <CardHeader>
-                    <div className="mb-5 flex h-10 w-10 items-center justify-center rounded-md border border-[#27272a] bg-[#09090b] text-zinc-400 transition-colors group-hover:border-blue-500/50 group-hover:text-blue-500">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
+                <Card
+                  className={cn(
+                    "relative flex min-h-[176px] items-center justify-center overflow-hidden border-[#27272a] bg-[#111113] px-4 py-6 text-center text-zinc-50 shadow-[0_12px_32px_rgba(0,0,0,0.28),0_1px_0_rgba(255,255,255,0.03)_inset] transition-all duration-300 sm:min-h-[188px]",
+                    isActive
+                      ? "-translate-y-1 border-white/[0.16] bg-[#141417]"
+                      : "hover:-translate-y-1 hover:border-white/[0.16] hover:bg-[#141417]",
+                  )}
+                  onBlur={() => setActiveFeature(null)}
+                  onFocus={() => setActiveFeature(feature.title)}
+                  onMouseEnter={() => setActiveFeature(feature.title)}
+                  onMouseLeave={() => setActiveFeature(null)}
+                  tabIndex={0}
+                >
+                  {/* Animated dots */}
+                  <motion.div
+                    animate={{
+                      height: isActive ? "calc(100% - 32px)" : "48px",
+                      left: isActive ? "16px" : "calc(50% - 24px)",
+                      top: isActive ? "16px" : "calc(50% - 55px)",
+                      width: isActive ? "calc(100% - 32px)" : "48px",
+                    }}
+                    transition={{
+                      duration: 0.45,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="pointer-events-none absolute"
+                  >
+                    <span className="absolute left-0 top-0 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-600" />
+                    <span className="absolute right-0 top-0 h-[5px] w-[5px] -translate-y-1/2 translate-x-1/2 rounded-full bg-zinc-600" />
+                    <span className="absolute bottom-0 left-0 h-[5px] w-[5px] -translate-x-1/2 translate-y-1/2 rounded-full bg-zinc-600" />
+                    <span className="absolute bottom-0 right-0 h-[5px] w-[5px] translate-x-1/2 translate-y-1/2 rounded-full bg-zinc-600" />
+                  </motion.div>
+
+                  {/* Default state */}
+                  <motion.div
+                    animate={{
+                      opacity: isActive ? 0 : 1,
+                      scale: isActive ? 0.95 : 1,
+                      y: isActive ? -12 : 0,
+                    }}
+                    transition={{
+                      duration: 0.3,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="flex flex-col items-center"
+                  >
+                    <div className="mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-[15px] border border-[#27272a] bg-[#18181b]">
+                      <Icon className="h-7 w-7 text-zinc-300" />
                     </div>
-                    <CardTitle>{feature.title}</CardTitle>
-                    <CardDescription>{feature.description}</CardDescription>
-                  </CardHeader>
+
+                    <CardTitle className="flex h-[42px] max-w-[9rem] items-center justify-center text-[17px] leading-[21px] text-zinc-50">
+                      {feature.title}
+                    </CardTitle>
+                  </motion.div>
+
+                  {/* Expanded state */}
+                  <motion.div
+                    animate={{
+                      opacity: isActive ? 1 : 0,
+                      y: isActive ? 0 : 14,
+                      scale: isActive ? 1 : 0.96,
+                    }}
+                    transition={{
+                      delay: isActive ? 0.12 : 0,
+                      duration: 0.35,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="absolute inset-0 flex flex-col items-center justify-center px-6"
+                  >
+                    <CardTitle className="text-[17px] text-zinc-50">
+                      {feature.title}
+                    </CardTitle>
+
+                    <p className="mt-4 max-w-[13rem] text-sm leading-6 text-zinc-400">
+                      {feature.description}
+                    </p>
+                  </motion.div>
                 </Card>
               </motion.div>
             );
@@ -859,7 +937,6 @@ function Footer() {
             <a
               className="group flex items-center gap-2.5"
               href="#top"
-              onClick={() => setMobileOpen(false)}
               aria-label="Flux home"
             >
               <svg
@@ -942,11 +1019,15 @@ function SectionHeading({
   eyebrow,
   title,
   description,
+  tone = "dark",
 }: {
   eyebrow: string;
   title: string;
   description: string;
+  tone?: "dark" | "light";
 }) {
+  const isLight = tone === "light";
+
   return (
     <motion.div
       className="mx-auto max-w-3xl text-center"
@@ -954,18 +1035,45 @@ function SectionHeading({
       viewport={{ once: true, amount: 0.35 }}
       whileInView={{ opacity: 1, y: 0 }}
     >
-      <SectionKicker>{eyebrow}</SectionKicker>
-      <h2 className="mt-4 text-balance text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
+      <SectionKicker tone={tone}>{eyebrow}</SectionKicker>
+      <h2
+        className={cn(
+          "mt-4 text-balance text-3xl font-semibold leading-tight tracking-normal sm:text-5xl",
+          isLight ? "text-[#27272a]" : "text-zinc-50",
+        )}
+      >
         {title}
       </h2>
-      <p className="mt-5 text-base leading-8 text-zinc-400">{description}</p>
+      <p
+        className={cn(
+          "mt-5 text-base leading-8",
+          isLight ? "text-zinc-600" : "text-zinc-400",
+        )}
+      >
+        {description}
+      </p>
     </motion.div>
   );
 }
 
-function SectionKicker({ children }: { children: React.ReactNode }) {
+function SectionKicker({
+  children,
+  tone = "dark",
+}: {
+  children: React.ReactNode;
+  tone?: "dark" | "light";
+}) {
+  const isLight = tone === "light";
+
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-[#27272a] bg-[#111113] px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em] text-zinc-400">
+    <div
+      className={cn(
+        "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.14em]",
+        isLight
+          ? "border-zinc-200 bg-white text-zinc-500"
+          : "border-[#27272a] bg-[#111113] text-zinc-400",
+      )}
+    >
       <Clock3 className="h-3.5 w-3.5 text-blue-500" aria-hidden="true" />
       {children}
     </div>
