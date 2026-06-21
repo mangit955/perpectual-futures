@@ -23,7 +23,6 @@ import {
   Database,
   FileCode2,
   Gauge,
-  Layers3,
   LineChart,
   LockKeyhole,
   Network,
@@ -48,6 +47,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CanvasText } from "../ui/canvas-text";
 import { PulsatingButton } from "../ui/pulsating-button";
+import WorldMap from "../ui/world-map";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = `${githubHref}/tree/main/docs`;
@@ -774,17 +774,15 @@ function CtaSection() {
   return (
     <SectionWrapper id="cta">
       <div className="mx-auto max-w-5xl rounded-lg border border-[#27272a] bg-[#111113] p-8 text-center shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] sm:p-12">
-        <div className="mx-auto mb-6 flex h-12 w-12 items-center justify-center rounded-md border border-blue-500/40 bg-blue-500/10 text-blue-500">
-          <Boxes className="h-6 w-6" aria-hidden="true" />
-        </div>
         <h2 className="text-balance text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
-          Build on a Modern Exchange Infrastructure
+          <span className="text-neutral-500">Build on a </span> Modern Exchange
+          <span className="text-neutral-500"> Infrastructure</span>
         </h2>
         <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-zinc-400">
           Launch with a backend shaped around deterministic matching, durable
           persistence, real-time market streams, and operational clarity.
         </p>
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+        <div className="mt-8 pb-6 flex flex-col justify-center gap-3 sm:flex-row">
           <a
             className={cn(
               buttonVariants({ variant: "primary", size: "lg" }),
@@ -803,6 +801,42 @@ function CtaSection() {
             <BookOpen className="h-4 w-4" aria-hidden="true" />
           </a>
         </div>
+        <WorldMap
+          theme="dark"
+          lineColor="#3b82f6"
+          dots={[
+            {
+              start: {
+                lat: 64.2008,
+                lng: -149.4937,
+              }, // Alaska (Fairbanks)
+              end: {
+                lat: 34.0522,
+                lng: -118.2437,
+              }, // Los Angeles
+            },
+            {
+              start: { lat: 64.2008, lng: -149.4937 }, // Alaska (Fairbanks)
+              end: { lat: -15.7975, lng: -47.8919 }, // Brazil (Brasília)
+            },
+            {
+              start: { lat: -15.7975, lng: -47.8919 }, // Brazil (Brasília)
+              end: { lat: 38.7223, lng: -9.1393 }, // Lisbon
+            },
+            {
+              start: { lat: 51.5074, lng: -0.1278 }, // London
+              end: { lat: 28.6139, lng: 77.209 }, // New Delhi
+            },
+            {
+              start: { lat: 28.6139, lng: 77.209 }, // New Delhi
+              end: { lat: 43.1332, lng: 131.9113 }, // Vladivostok
+            },
+            {
+              start: { lat: 28.6139, lng: 77.209 }, // New Delhi
+              end: { lat: -1.2921, lng: 36.8219 }, // Nairobi
+            },
+          ]}
+        />
       </div>
     </SectionWrapper>
   );
