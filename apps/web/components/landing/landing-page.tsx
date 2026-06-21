@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  motion,
-  useInView,
-  useMotionValueEvent,
-  useScroll,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { motion, useInView, useScroll, useTransform } from "framer-motion";
+import Image from "next/image";
 import { FaGithub } from "react-icons/fa";
 import {
   ArrowRight,
@@ -16,7 +10,6 @@ import {
   Boxes,
   Check,
   ChevronRight,
-  CircleDot,
   Clock3,
   Code2,
   Copy,
@@ -25,9 +18,7 @@ import {
   Gauge,
   LineChart,
   LockKeyhole,
-  Network,
   RadioTower,
-  Server,
   ShieldCheck,
   Terminal,
   Workflow,
@@ -64,42 +55,6 @@ const stats = [
   { label: "Orders/sec target", value: "100k+" },
   { label: "Matching path", value: "Sub-ms" },
   { label: "Engine model", value: "Event sourced" },
-];
-
-const architectureStages = [
-  {
-    id: "clients",
-    title: "Website / Mobile",
-    description: "Clients submit signed intent through a narrow API surface.",
-    icon: Network,
-  },
-  {
-    id: "backend",
-    title: "Backend",
-    description:
-      "Auth, validation, risk pre-checks, Postgres writes, and outbox rows.",
-    icon: Server,
-  },
-  {
-    id: "queue",
-    title: "Event Queue",
-    description:
-      "Redis Streams order commands and execution events per market.",
-    icon: Workflow,
-  },
-  {
-    id: "engine",
-    title: "Matching Engine",
-    description:
-      "Deterministic price-time priority with fills emitted from the hot path.",
-    icon: Gauge,
-  },
-  {
-    id: "snapshots",
-    title: "Snapshots",
-    description: "Orderbooks recover from snapshots plus stream replay.",
-    icon: Database,
-  },
 ];
 
 const features = [
@@ -323,25 +278,6 @@ function HeroSection() {
 
 function ArchitectureSection() {
   const sectionRef = useRef<HTMLElement | null>(null);
-  const { scrollYProgress } = useScroll({
-    target: sectionRef,
-    offset: ["start 70%", "end 40%"],
-  });
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 90,
-    damping: 24,
-    mass: 0.4,
-  });
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  useMotionValueEvent(smoothProgress, "change", (latest) => {
-    setActiveIndex(
-      Math.min(
-        architectureStages.length - 1,
-        Math.max(0, Math.floor(latest * architectureStages.length)),
-      ),
-    );
-  });
 
   return (
     <SectionWrapper
@@ -355,142 +291,69 @@ function ArchitectureSection() {
           title="A clean execution pipeline from intent to recovery."
           description="The public API stays separate from the matching hot path. Commands are ordered, events are replayable, and durable state catches up through workers."
         />
-        <div className="mt-14 grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
-          <motion.div
-            className="space-y-4"
-            initial="hidden"
-            variants={stagger}
-            viewport={{ once: true, amount: 0.35 }}
-            whileInView="show"
-          >
-            {architectureStages.map((stage, index) => {
-              const Icon = stage.icon;
-              const isActive = index <= activeIndex;
-
-              return (
-                <motion.div
-                  className={cn(
-                    "group rounded-lg border bg-[#111113] p-5 transition-all duration-300",
-                    isActive
-                      ? "border-blue-500/60 shadow-[0_0_0_1px_rgba(59,130,246,0.12),0_24px_60px_rgba(59,130,246,0.08)]"
-                      : "border-[#27272a] hover:border-zinc-500",
-                  )}
-                  key={stage.id}
-                  variants={fadeUp}
-                >
-                  <div className="flex items-start gap-4">
-                    <span
-                      className={cn(
-                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-md border transition-colors",
-                        isActive
-                          ? "border-blue-500/50 bg-blue-500/10 text-blue-500"
-                          : "border-[#27272a] bg-[#09090b] text-zinc-400 group-hover:text-zinc-50",
-                      )}
-                    >
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <h3 className="font-semibold text-zinc-50">
-                        {stage.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-zinc-400">
-                        {stage.description}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-          <ArchitectureDiagram
-            activeIndex={activeIndex}
-            progress={smoothProgress}
-          />
-        </div>
+        <ExchangePreview />
       </div>
     </SectionWrapper>
   );
 }
 
-function ArchitectureDiagram({
-  activeIndex,
-  progress,
-}: {
-  activeIndex: number;
-  progress: ReturnType<typeof useSpring>;
-}) {
-  const flowHeight = useTransform(progress, [0, 1], ["0%", "100%"]);
+function ExchangePreview() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ["start end", "end start"],
+  });
+
+  // Card moves slower than page scroll
+  const y = useTransform(scrollYProgress, [0, 1], [80, -80]);
+
+  // Subtle zoom
+  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.96, 1, 1.03]);
+
+  // Slight fade-in
+  const opacity = useTransform(scrollYProgress, [0, 0.2], [0.4, 1]);
 
   return (
-    <div className="relative rounded-lg border border-[#27272a] bg-[#111113] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset] sm:p-6">
-      <div className="absolute inset-0 rounded-lg bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.12),transparent_26rem)]" />
-      <div className="relative mx-auto max-w-xl">
-        <div className="absolute left-1/2 top-8 hidden h-[calc(100%-4rem)] w-px -translate-x-1/2 bg-border sm:block" />
-        <motion.div
-          className="absolute left-1/2 top-8 hidden w-px -translate-x-1/2 bg-blue-500 shadow-[0_0_24px_rgba(59,130,246,0.7)] sm:block"
-          style={{ height: flowHeight }}
-        />
-        <div className="space-y-4">
-          {architectureStages.map((stage, index) => {
-            const Icon = stage.icon;
-            const isActive = index <= activeIndex;
-
-            return (
-              <motion.div
-                animate={{
-                  opacity: isActive ? 1 : 0.68,
-                  scale: isActive ? 1 : 0.985,
-                }}
-                className="relative grid gap-3 sm:grid-cols-[1fr_3rem_1fr] sm:items-center"
-                key={stage.id}
-                transition={{ duration: 0.25 }}
-              >
-                <div
-                  className={cn(
-                    "rounded-lg border p-4 transition-colors duration-300",
-                    index % 2 === 0 ? "sm:col-start-1" : "sm:col-start-3",
-                    isActive
-                      ? "border-blue-500/55 bg-[#09090b]"
-                      : "border-[#27272a] bg-[#09090b]/70",
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-md border",
-                        isActive
-                          ? "border-blue-500/50 bg-blue-500/10 text-blue-500"
-                          : "border-[#27272a] text-zinc-400",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div>
-                      <div className="text-sm font-semibold">{stage.title}</div>
-                      <div className="mt-0.5 text-xs text-zinc-400">
-                        {stage.id === "queue"
-                          ? "ordered stream"
-                          : "isolated service"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <span
-                  className={cn(
-                    "hidden h-8 w-8 items-center justify-center rounded-full border bg-[#111113] sm:flex sm:col-start-2 sm:row-start-1",
-                    isActive
-                      ? "border-blue-500 text-blue-500"
-                      : "border-[#27272a] text-zinc-400",
-                  )}
-                >
-                  <CircleDot className="h-4 w-4" aria-hidden="true" />
-                </span>
-              </motion.div>
-            );
-          })}
+    <motion.div
+      ref={ref}
+      style={{
+        y,
+        scale,
+        opacity,
+      }}
+      className="mx-auto mt-14 max-w-7xl"
+    >
+      <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#0b0b0c] shadow-[0_34px_110px_rgba(0,0,0,0.48),0_0_0_1px_rgba(255,255,255,0.04)_inset]">
+        {/* Header */}
+        <div className="flex h-11 items-center border-b border-white/10 px-5">
+          <div className="flex gap-2">
+            <span className="h-3 w-3 rounded-full bg-white/15" />
+            <span className="h-3 w-3 rounded-full bg-white/15" />
+            <span className="h-3 w-3 rounded-full bg-white/15" />
+          </div>
         </div>
+
+        {/* Content */}
+        <div className="p-3 sm:p-4">
+          <div className="overflow-hidden rounded-[14px] border border-white/10 bg-[#0f0f10] shadow-[0_1px_0_rgba(255,255,255,0.05)_inset]">
+            <Image
+              src="/exchange.png"
+              alt="Exchange application interface"
+              width={1732}
+              height={908}
+              className="aspect-[1732/908] w-full object-cover opacity-80"
+            />
+          </div>
+        </div>
+
+        {/* Glow overlay */}
+        <div className="pointer-events-none absolute inset-0 rounded-[22px] ring-1 ring-white/[0.03]" />
+
+        {/* Optional gradient glow */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-white/[0.02] to-transparent" />
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -502,7 +365,15 @@ function FeaturesSection() {
       <div className="mx-auto max-w-[1060px]">
         <SectionHeading
           eyebrow="Features"
-          title="The parts that matter in a serious exchange backend."
+          title={
+            <>
+              <span className="text-neutral-500">The </span>
+              parts that matter{" "}
+              <span className="text-neutral-500">
+                in a serious exchange backend.
+              </span>
+            </>
+          }
           description="Built from simple service boundaries, explicit persistence, and a matching engine that can be reasoned about under load."
         />
         <motion.div
@@ -611,7 +482,12 @@ function PerformanceSection() {
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           eyebrow="Performance"
-          title="Built around the hot path."
+          title={
+            <>
+              <span className="text-neutral-500">Build around </span>
+              hot path
+            </>
+          }
           description="The engine consumes ordered commands, keeps orderbooks in memory, and delegates persistence to idempotent workers."
         />
         <div className="mt-14 grid gap-4 lg:grid-cols-3">
@@ -685,9 +561,21 @@ function AnimatedCounter({
       className="text-5xl font-semibold tracking-normal sm:text-6xl"
       ref={ref}
     >
-      {prefix}
+      {prefix ? (
+        <span className={prefix === "<" ? "text-neutral-500" : undefined}>
+          {prefix}
+        </span>
+      ) : null}
       {formatted}
-      {suffix}
+      {suffix ? (
+        <span
+          className={
+            suffix === "+" || suffix === "%" ? "text-neutral-500" : undefined
+          }
+        >
+          {suffix}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -1022,7 +910,7 @@ function SectionHeading({
   tone = "dark",
 }: {
   eyebrow: string;
-  title: string;
+  title: React.ReactNode;
   description: string;
   tone?: "dark" | "light";
 }) {
@@ -1035,7 +923,6 @@ function SectionHeading({
       viewport={{ once: true, amount: 0.35 }}
       whileInView={{ opacity: 1, y: 0 }}
     >
-      <SectionKicker tone={tone}>{eyebrow}</SectionKicker>
       <h2
         className={cn(
           "mt-4 text-balance text-3xl font-semibold leading-tight tracking-normal sm:text-5xl",
@@ -1047,7 +934,7 @@ function SectionHeading({
       <p
         className={cn(
           "mt-5 text-base leading-8",
-          isLight ? "text-zinc-600" : "text-zinc-400",
+          isLight ? "text-zinc-600" : "text-neutral-600",
         )}
       >
         {description}
