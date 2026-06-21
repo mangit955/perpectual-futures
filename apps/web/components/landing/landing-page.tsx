@@ -218,7 +218,6 @@ export function LandingPage() {
 function HeroSection() {
   return (
     <SectionWrapper className="pb-24 pt-32 sm:pb-28 sm:pt-40" id="top">
-      <div className="absolute inset-x-0 top-16 -z-10 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       <motion.div
         animate="show"
         className="mx-auto flex max-w-5xl flex-col items-center text-center"
@@ -530,10 +529,7 @@ function FeaturesSection() {
 
 function PerformanceSection() {
   return (
-    <SectionWrapper
-      className="bg-[#111113]/25"
-      id="performance"
-    >
+    <SectionWrapper className="bg-[#111113]/25" id="performance">
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           eyebrow="Performance"
@@ -740,10 +736,7 @@ function CodePanel() {
 
 function RoadmapSection() {
   return (
-    <SectionWrapper
-      className="bg-[#111113]/[0.14]"
-      id="roadmap"
-    >
+    <SectionWrapper className="bg-[#111113]/[0.14]" id="roadmap">
       <div className="mx-auto max-w-5xl">
         <SectionHeading
           eyebrow="Roadmap"
@@ -829,10 +822,62 @@ function Footer() {
       <div className="flex w-full flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-3 text-sm font-semibold">
-            <span className="flex h-8 w-8 items-center justify-center rounded-md border border-[#27272a] bg-[#111113]">
-              <Layers3 className="h-4 w-4 text-blue-500" aria-hidden="true" />
-            </span>
-            Flux
+            <a
+              className="group flex items-center gap-2.5"
+              href="#top"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Flux home"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 26 26"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <rect
+                  x="3"
+                  y="6"
+                  width="4"
+                  height="15"
+                  rx="2"
+                  fill="white"
+                  transform="rotate(-18 3 6)"
+                />
+                <rect
+                  x="10.5"
+                  y="3"
+                  width="4"
+                  height="18"
+                  rx="2"
+                  fill="white"
+                  transform="rotate(-18 10.5 3)"
+                />
+                <rect
+                  x="18"
+                  y="1"
+                  width="4"
+                  height="21"
+                  rx="2"
+                  fill="white"
+                  opacity="0.35"
+                  transform="rotate(-18 18 1)"
+                />
+              </svg>
+
+              <span
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 600,
+                  fontSize: "1.15rem",
+                  letterSpacing: "-0.025em",
+                  color: "#ffffff",
+                }}
+              >
+                flux
+              </span>
+            </a>
           </div>
           <p className="mt-3 text-sm text-zinc-400">
             Perpetual futures infrastructure for modern teams.

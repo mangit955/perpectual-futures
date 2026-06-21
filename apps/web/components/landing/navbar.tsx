@@ -8,18 +8,21 @@ import {
   useScroll,
 } from "framer-motion";
 import { FaGithub } from "react-icons/fa";
-import { Activity, ArrowRight, Menu, X } from "lucide-react";
+import { ArrowUpRight, Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Press_Start_2P } from "next/font/google";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = `${githubHref}/tree/main/docs`;
 
+const dotFont = Press_Start_2P({ weight: "400", subsets: ["latin"] });
 const navItems = [
-  { label: "Features", href: "#features", id: "features" },
   { label: "Architecture", href: "#architecture", id: "architecture" },
+  { label: "Features", href: "#features", id: "features" },
   { label: "Performance", href: "#performance", id: "performance" },
-  { label: "Docs", href: docsHref, id: "docs" },
+  { label: "Developer", href: "#developer", id: "developer" },
+  { label: "Roadmap", href: "#roadmap", id: "roadmap" },
 ];
 
 export function Navbar() {
@@ -31,6 +34,15 @@ export function Navbar() {
   useMotionValueEvent(scrollY, "change", (latest) => {
     setScrolled(latest > 16);
   });
+
+  useEffect(() => {
+    const updateScrolled = () => setScrolled(window.scrollY > 16);
+
+    updateScrolled();
+    window.addEventListener("scroll", updateScrolled, { passive: true });
+
+    return () => window.removeEventListener("scroll", updateScrolled);
+  }, []);
 
   useEffect(() => {
     const hashItems = navItems.filter((item) => item.href.startsWith("#"));
@@ -83,19 +95,59 @@ export function Navbar() {
       >
         <div className="flex min-w-0 items-center gap-8">
           <a
-            className="group flex items-center gap-3"
+            className="group flex items-center gap-2.5"
             href="#top"
             onClick={() => setMobileOpen(false)}
             aria-label="Flux home"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-md border border-white/[0.10] bg-white/[0.03] transition-all duration-200 group-hover:border-white/[0.22] group-hover:bg-white/[0.07]">
-              <Activity
-                className="h-4 w-4 text-zinc-50"
-                aria-hidden="true"
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 26 26"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <rect
+                x="3"
+                y="6"
+                width="4"
+                height="15"
+                rx="2"
+                fill="white"
+                transform="rotate(-18 3 6)"
               />
-            </span>
-            <span className="text-sm font-semibold tracking-normal text-zinc-50">
-              Flux
+              <rect
+                x="10.5"
+                y="3"
+                width="4"
+                height="18"
+                rx="2"
+                fill="white"
+                transform="rotate(-18 10.5 3)"
+              />
+              <rect
+                x="18"
+                y="1"
+                width="4"
+                height="21"
+                rx="2"
+                fill="white"
+                opacity="0.35"
+                transform="rotate(-18 18 1)"
+              />
+            </svg>
+
+            <span
+              style={{
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 600,
+                fontSize: "1.5rem",
+                letterSpacing: "-0.025em",
+                color: "#ffffff",
+              }}
+            >
+              flux
             </span>
           </a>
 
@@ -112,35 +164,26 @@ export function Navbar() {
           </div>
         </div>
 
-        <div className="hidden items-center gap-2 lg:flex">
+        <div className="hidden items-center gap-3 lg:flex">
           <a
-            className="group inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors duration-200 hover:text-zinc-50"
+            aria-label="Open GitHub repository"
+            className="group inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/[0.10] bg-white/[0.03] text-zinc-400 transition-colors duration-200 hover:border-white/[0.18] hover:bg-white/[0.07] hover:text-zinc-50"
             href={githubHref}
           >
             <FaGithub
               className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5"
               aria-hidden="true"
             />
-            Github
           </a>
           <a
             className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "text-zinc-400",
+              buttonVariants({ variant: "secondary", size: "sm" }),
+              "px-4 text-zinc-50",
             )}
-            href="#developer"
+            href={docsHref}
           >
-            Sign In
-          </a>
-          <a
-            className={cn(
-              buttonVariants({ variant: "primary", size: "sm" }),
-              "px-4 text-gray-950!",
-            )}
-            href="#cta"
-          >
-            Launch App
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            View Docs
+            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
           </a>
         </div>
 
@@ -176,8 +219,7 @@ export function Navbar() {
                 <a
                   className={cn(
                     "rounded-md px-3 py-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-zinc-50",
-                    activeSection === item.id &&
-                      "bg-white/[0.05] text-zinc-50",
+                    activeSection === item.id && "bg-white/[0.05] text-zinc-50",
                   )}
                   href={item.href}
                   key={item.label}
@@ -195,21 +237,15 @@ export function Navbar() {
                 Github
               </a>
               <a
-                className="rounded-md px-3 py-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-white/[0.05] hover:text-zinc-50"
-                href="#developer"
-                onClick={() => setMobileOpen(false)}
-              >
-                Sign In
-              </a>
-              <a
                 className={cn(
-                  buttonVariants({ variant: "primary", size: "md" }),
-                  "mt-2 w-full text-gray-950!",
+                  buttonVariants({ variant: "secondary", size: "md" }),
+                  "mt-2 w-full",
                 )}
-                href="#cta"
+                href={docsHref}
                 onClick={() => setMobileOpen(false)}
               >
-                Launch App
+                View Docs
+                <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
               </a>
             </div>
           </motion.div>
@@ -230,19 +266,25 @@ function NavLink({
 }) {
   return (
     <a
-      className={cn(
-        "group relative rounded-md px-3 py-2 text-sm font-medium text-zinc-400 transition-colors duration-200 hover:text-zinc-50",
-        active && "text-zinc-50",
-      )}
       href={href}
+      className={cn(
+        "relative rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
+        active ? "text-zinc-50" : "text-zinc-400 hover:text-zinc-50",
+      )}
     >
-      {children}
-      <span
-        className={cn(
-          "absolute inset-x-3 -bottom-0.5 h-px origin-center scale-x-0 bg-zinc-50/70 transition-transform duration-200",
-          active ? "scale-x-100" : "group-hover:scale-x-100",
-        )}
-      />
+      {active && (
+        <motion.span
+          layoutId="navbar-active-pill"
+          className="absolute inset-0 rounded-md border border-white/[0.06] bg-white/[0.04]"
+          transition={{
+            type: "spring",
+            stiffness: 450,
+            damping: 35,
+          }}
+        />
+      )}
+
+      <span className="relative z-10">{children}</span>
     </a>
   );
 }
