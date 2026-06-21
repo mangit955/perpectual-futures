@@ -192,7 +192,7 @@ function HeroSection() {
           <PulsatingButton
             aria-label="Live status"
             pulseColor="#22c55e"
-            duration="2.5s"
+            duration="2s"
             className="h-2 w-2 rounded-full bg-yellow-500 p-0 text-transparent shadow-none pointer-events-none"
           >
             .

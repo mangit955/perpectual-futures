@@ -148,7 +148,7 @@ export function Navbar() {
             </span>
           </a>
 
-          <div className="hidden items-center gap-1 lg:flex">
+          <div className="hidden items-center gap-1 lg:flex ">
             {navItems.map((item) => (
               <NavLink
                 active={activeSection === item.id}
@@ -172,16 +172,31 @@ export function Navbar() {
               aria-hidden="true"
             />
           </a>
-          <a
+          <motion.a
+            href={docsHref}
+            whileHover="hover"
             className={cn(
               buttonVariants({ variant: "secondary", size: "sm" }),
-              "px-4 text-zinc-50",
+              "group border border-white/[0.10] bg-white/[0.03] text-zinc-400",
+              "hover:border-white/[0.18] hover:bg-white/[0.07] hover:text-zinc-50",
             )}
-            href={docsHref}
           >
             View Docs
-            <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-          </a>
+            <motion.span
+              variants={{
+                hover: {
+                  rotate: 45,
+                  x: 4,
+                },
+              }}
+              transition={{
+                duration: 0.25,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              <ArrowUpRight className="h-4 w-4" />
+            </motion.span>
+          </motion.a>
         </div>
 
         <button
@@ -265,7 +280,7 @@ function NavLink({
     <a
       href={href}
       className={cn(
-        "relative rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200",
+        "relative rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-white/[0.04] hover:text-zinc-50",
         active ? "text-zinc-50" : "text-zinc-400 hover:text-zinc-50",
       )}
     >
