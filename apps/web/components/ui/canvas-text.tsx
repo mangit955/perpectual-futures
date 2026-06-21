@@ -184,7 +184,7 @@ export function CanvasText({
   return (
     <span
       className={cn(
-        "relative inline-block",
+        "relative inline-block overflow-visible",
         overlay && "absolute inset-0",
         className,
       )}

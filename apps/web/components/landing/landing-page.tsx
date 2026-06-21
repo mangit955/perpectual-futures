@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useInView, useScroll, useTransform } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import Image from "next/image";
 import { FaGithub } from "react-icons/fa";
 import {
@@ -203,9 +203,9 @@ function HeroSection() {
           className="max-w-4xl text-balance text-5xl font-semibold leading-[1.03] tracking-normal text-zinc-50 sm:text-6xl lg:text-7xl"
           variants={fadeUp}
         >
-          Perpetual Futures Infrastructure
+          Built for traders who{" "}
           <CanvasText
-            text="Built for Speed"
+            text="don't settle"
             backgroundClassName="bg-blue-600 dark:bg-blue-700"
             colors={[
               "rgba(0, 153, 255, 1)",
@@ -298,31 +298,13 @@ function ArchitectureSection() {
 }
 
 function ExchangePreview() {
-  const ref = useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-
-  // Card moves slower than page scroll
-  const y = useTransform(scrollYProgress, [0, 1], [80, -80]);
-
-  // Subtle zoom
-  const scale = useTransform(scrollYProgress, [0, 0.5, 1], [0.96, 1, 1.03]);
-
-  // Slight fade-in
-  const opacity = useTransform(scrollYProgress, [0, 0.2], [0.4, 1]);
-
   return (
     <motion.div
-      ref={ref}
-      style={{
-        y,
-        scale,
-        opacity,
-      }}
       className="mx-auto mt-14 max-w-7xl"
+      initial={{ opacity: 0, y: 28 }}
+      viewport={{ once: true, amount: 0.22 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#0b0b0c] shadow-[0_34px_110px_rgba(0,0,0,0.48),0_0_0_1px_rgba(255,255,255,0.04)_inset]">
         {/* Header */}
@@ -585,7 +567,6 @@ function DeveloperSection() {
     <SectionWrapper id="developer">
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
         <div>
-          <SectionKicker>Developer Experience</SectionKicker>
           <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
             Predictable APIs for teams that ship trading systems.
           </h2>

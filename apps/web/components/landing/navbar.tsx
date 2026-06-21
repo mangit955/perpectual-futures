@@ -11,14 +11,11 @@ import { FaGithub } from "react-icons/fa";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Press_Start_2P } from "next/font/google";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = `${githubHref}/tree/main/docs`;
 
-const dotFont = Press_Start_2P({ weight: "400", subsets: ["latin"] });
 const navItems = [
-  { label: "Architecture", href: "#architecture", id: "architecture" },
   { label: "Features", href: "#features", id: "features" },
   { label: "Performance", href: "#performance", id: "performance" },
   { label: "Developer", href: "#developer", id: "developer" },
