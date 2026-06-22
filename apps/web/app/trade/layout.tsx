@@ -12,7 +12,7 @@ export default function TradeLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#09090b]">
+    <div className="flex min-h-screen w-screen flex-col bg-[#09090b]">
       {children}
     </div>
   );

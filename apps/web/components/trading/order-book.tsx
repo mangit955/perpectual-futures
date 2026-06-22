@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useOrderBook, useLastPrice, formatPrice } from "@/hooks/use-market-feed";
+import { motion } from "motion/react";
+import {
+  useOrderBook,
+  useLastPrice,
+  formatPrice,
+} from "@/hooks/use-market-feed";
 import type { OrderBookEntry, BookTab } from "@/types/trading";
 import { cn } from "@/lib/utils";
 import { RecentTrades } from "@/components/trading/recent-trades";
@@ -25,9 +30,32 @@ type Precision = (typeof PRECISION_OPTIONS)[number];
 function AsksOnlyIcon({ active }: { active: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="1" width="12" height="3" rx="0.5" fill={active ? "#ef4444" : "#52525b"} />
-      <rect x="1" y="5.5" width="12" height="3" rx="0.5" fill={active ? "#ef4444" : "#52525b"} opacity={0.6} />
-      <rect x="1" y="10" width="12" height="3" rx="0.5" fill={active ? "#ef4444" : "#52525b"} opacity={0.3} />
+      <rect
+        x="1"
+        y="1"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#ef4444" : "#52525b"}
+      />
+      <rect
+        x="1"
+        y="5.5"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#ef4444" : "#52525b"}
+        opacity={0.6}
+      />
+      <rect
+        x="1"
+        y="10"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#ef4444" : "#52525b"}
+        opacity={0.3}
+      />
     </svg>
   );
 }
@@ -35,10 +63,40 @@ function AsksOnlyIcon({ active }: { active: boolean }) {
 function SplitViewIcon({ active }: { active: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="1" width="12" height="2.5" rx="0.5" fill={active ? "#ef4444" : "#52525b"} />
-      <rect x="1" y="4.5" width="12" height="2.5" rx="0.5" fill={active ? "#ef4444" : "#52525b"} opacity={0.6} />
-      <rect x="1" y="8" width="12" height="2.5" rx="0.5" fill={active ? "#22c55e" : "#52525b"} opacity={0.6} />
-      <rect x="1" y="11" width="12" height="2.5" rx="0.5" fill={active ? "#22c55e" : "#52525b"} />
+      <rect
+        x="1"
+        y="1"
+        width="12"
+        height="2.5"
+        rx="0.5"
+        fill={active ? "#ef4444" : "#52525b"}
+      />
+      <rect
+        x="1"
+        y="4.5"
+        width="12"
+        height="2.5"
+        rx="0.5"
+        fill={active ? "#ef4444" : "#52525b"}
+        opacity={0.6}
+      />
+      <rect
+        x="1"
+        y="8"
+        width="12"
+        height="2.5"
+        rx="0.5"
+        fill={active ? "#22c55e" : "#52525b"}
+        opacity={0.6}
+      />
+      <rect
+        x="1"
+        y="11"
+        width="12"
+        height="2.5"
+        rx="0.5"
+        fill={active ? "#22c55e" : "#52525b"}
+      />
     </svg>
   );
 }
@@ -46,9 +104,32 @@ function SplitViewIcon({ active }: { active: boolean }) {
 function BidsOnlyIcon({ active }: { active: boolean }) {
   return (
     <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-      <rect x="1" y="1" width="12" height="3" rx="0.5" fill={active ? "#22c55e" : "#52525b"} opacity={0.3} />
-      <rect x="1" y="5.5" width="12" height="3" rx="0.5" fill={active ? "#22c55e" : "#52525b"} opacity={0.6} />
-      <rect x="1" y="10" width="12" height="3" rx="0.5" fill={active ? "#22c55e" : "#52525b"} />
+      <rect
+        x="1"
+        y="1"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#22c55e" : "#52525b"}
+        opacity={0.3}
+      />
+      <rect
+        x="1"
+        y="5.5"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#22c55e" : "#52525b"}
+        opacity={0.6}
+      />
+      <rect
+        x="1"
+        y="10"
+        width="12"
+        height="3"
+        rx="0.5"
+        fill={active ? "#22c55e" : "#52525b"}
+      />
     </svg>
   );
 }
@@ -91,31 +172,38 @@ interface OrderRowProps {
 function OrderRow({ entry, maxTotal, side, precision }: OrderRowProps) {
   const depthPercent = maxTotal > 0 ? (entry.total / maxTotal) * 100 : 0;
   const bgColor =
-    side === "ask"
-      ? `rgba(239,68,68,0.15)`
-      : `rgba(34,197,94,0.15)`;
+    side === "ask" ? `rgba(239,68,68,0.15)` : `rgba(34,197,94,0.15)`;
 
-  const decimals = precision < 1 ? String(precision).split(".")[1]?.length ?? 2 : 0;
+  const decimals =
+    precision < 1 ? (String(precision).split(".")[1]?.length ?? 2) : 0;
 
   return (
-    <div
-      className="flex items-center px-2 h-5 hover:bg-white/[0.02] transition-colors duration-75 relative cursor-pointer"
-      style={{
-        background: `linear-gradient(to left, ${bgColor} ${depthPercent}%, transparent ${depthPercent}%)`,
-      }}
-    >
+    <div className="relative flex items-center px-2 h-5 hover:bg-white/[0.02] transition-colors duration-75 cursor-pointer overflow-hidden">
+      <motion.div
+        className={cn(
+          "absolute right-0 top-0 h-full",
+          side === "ask" ? "bg-red-500/15" : "bg-emerald-500/15",
+        )}
+        animate={{
+          width: `${depthPercent}%`,
+        }}
+        transition={{
+          duration: 0.8,
+          ease: "easeOut",
+        }}
+      />
       <span
         className={cn(
-          "flex-1 text-left font-mono text-xs tabular-nums",
-          side === "ask" ? "text-red-400" : "text-emerald-400"
+          "relative z-10 flex-1 text-left font-normal text-xs tabular-nums",
+          side === "ask" ? "text-red-400" : "text-emerald-400",
         )}
       >
         {formatPrice(entry.price, decimals)}
       </span>
-      <span className="flex-1 text-right font-mono text-xs text-zinc-300 tabular-nums">
+      <span className="relative z-10 flex-1 text-right font-normal text-xs text-zinc-300 tabular-nums">
         {entry.size.toFixed(4)}
       </span>
-      <span className="flex-1 text-right font-mono text-xs text-zinc-400 tabular-nums">
+      <span className="relative z-10 flex-1 text-right font-normal text-xs text-zinc-400 tabular-nums">
         {entry.total.toFixed(4)}
       </span>
     </div>
@@ -134,12 +222,12 @@ function SpreadRow({ lastPrice, spread, spreadPercentage }: SpreadRowProps) {
   return (
     <div className="flex items-center px-2 h-7 bg-[#111113] border-y border-[#1e1e22] shrink-0">
       <div className="flex items-center gap-1.5 flex-1">
-        <span className="font-mono text-sm font-medium text-[#fafafa] tabular-nums">
+        <span className="font-normal text-sm font-medium text-[#fafafa] tabular-nums">
           {formatPrice(lastPrice)}
         </span>
         <ArrowDown className="size-3 text-zinc-500" />
       </div>
-      <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-mono tabular-nums">
+      <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-normal tabular-nums">
         <span>Spread: {formatPrice(spread, 4)}</span>
         <span>({spreadPercentage.toFixed(3)}%)</span>
       </div>
@@ -157,19 +245,21 @@ interface PrecisionDropdownProps {
 function PrecisionDropdown({ value, onChange }: PrecisionDropdownProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        className="flex items-center gap-0.5 px-1.5 h-6 rounded border border-[#27272a] bg-[#18181b] text-[10px] font-mono text-zinc-400 hover:text-zinc-300 hover:border-zinc-600 transition-colors cursor-pointer outline-none"
-      >
+      <DropdownMenuTrigger className="flex items-center gap-0.5 px-1.5 h-6 rounded border border-[#27272a] bg-[#18181b] text-[10px] font-normal text-zinc-400 hover:text-zinc-300 hover:border-zinc-600 transition-colors cursor-pointer outline-none">
         {value}
         <ChevronDown className="size-3 text-zinc-500" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={4} className="min-w-[72px] bg-[#18181b] border border-[#27272a]">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={4}
+        className="min-w-[72px] bg-[#18181b] border border-[#27272a]"
+      >
         {PRECISION_OPTIONS.map((opt) => (
           <DropdownMenuItem
             key={opt}
             className={cn(
-              "font-mono text-xs cursor-pointer",
-              opt === value && "text-white bg-white/5"
+              "font-normal text-xs cursor-pointer",
+              opt === value && "text-white bg-white/5",
             )}
             onSelect={() => onChange(opt)}
           >
@@ -200,7 +290,10 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
 
     const precisionNum = parseFloat(precision);
 
-    const aggregate = (entries: OrderBookEntry[], isAsk: boolean): OrderBookEntry[] => {
+    const aggregate = (
+      entries: OrderBookEntry[],
+      isAsk: boolean,
+    ): OrderBookEntry[] => {
       const grouped = new Map<number, number>();
 
       for (const entry of entries) {
@@ -227,19 +320,26 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
     const asks = aggregate(orderBook.asks, true);
     const bids = aggregate(orderBook.bids, false);
 
-    return { asks, bids, spread: orderBook.spread, spreadPercentage: orderBook.spreadPercentage };
+    return {
+      asks,
+      bids,
+      spread: orderBook.spread,
+      spreadPercentage: orderBook.spreadPercentage,
+    };
   }, [orderBook, precision]);
 
   // ── Compute max totals for depth bars ──
   const { maxAskTotal, maxBidTotal } = useMemo(() => {
     if (!aggregatedData) return { maxAskTotal: 0, maxBidTotal: 0 };
 
-    const maxAsk = aggregatedData.asks.length > 0
-      ? Math.max(...aggregatedData.asks.map((e) => e.total))
-      : 0;
-    const maxBid = aggregatedData.bids.length > 0
-      ? Math.max(...aggregatedData.bids.map((e) => e.total))
-      : 0;
+    const maxAsk =
+      aggregatedData.asks.length > 0
+        ? Math.max(...aggregatedData.asks.map((e) => e.total))
+        : 0;
+    const maxBid =
+      aggregatedData.bids.length > 0
+        ? Math.max(...aggregatedData.bids.map((e) => e.total))
+        : 0;
 
     return { maxAskTotal: maxAsk, maxBidTotal: maxBid };
   }, [aggregatedData]);
@@ -247,17 +347,20 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
   const precisionNum = parseFloat(precision);
 
   // ── Determine row counts based on view mode ──
-  const getRowCount = useCallback((mode: ViewMode): { askRows: number; bidRows: number } => {
-    switch (mode) {
-      case "asks":
-        return { askRows: 20, bidRows: 0 };
-      case "bids":
-        return { askRows: 0, bidRows: 20 };
-      case "split":
-      default:
-        return { askRows: 10, bidRows: 10 };
-    }
-  }, []);
+  const getRowCount = useCallback(
+    (mode: ViewMode): { askRows: number; bidRows: number } => {
+      switch (mode) {
+        case "asks":
+          return { askRows: 20, bidRows: 0 };
+        case "bids":
+          return { askRows: 0, bidRows: 20 };
+        case "split":
+        default:
+          return { askRows: 10, bidRows: 10 };
+      }
+    },
+    [],
+  );
 
   const { askRows, bidRows } = getRowCount(viewMode);
 
@@ -278,41 +381,41 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
   }, [aggregatedData, bidRows]);
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full  p-2 min-h-0 overflow-hidden rounded-lg border border-[#1e1e22] bg-[#0d0d0f]">
       {/* Tab Bar */}
       <div className="flex items-center border-b border-[#1e1e22] shrink-0">
         <button
           onClick={() => setActiveTab("book")}
           className={cn(
-            "px-3 py-2 text-xs font-medium transition-colors relative",
+            "px-3 py-1 text-md font-medium rounded-md cursor-pointer transition-colors relative",
             activeTab === "book"
-              ? "text-[#fafafa]"
-              : "text-zinc-500 hover:text-zinc-400"
+              ? "text-[#fafafa] bg-zinc-900"
+              : "text-zinc-500 hover:text-zinc-400",
           )}
         >
           Book
-          {activeTab === "book" && (
-            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#fafafa]" />
-          )}
         </button>
         <button
           onClick={() => setActiveTab("trades")}
           className={cn(
-            "px-3 py-2 text-xs font-medium transition-colors relative",
+            "px-3 py-1 text-xs font-medium rounded-md cursor-pointer transition-colors relative",
             activeTab === "trades"
-              ? "text-[#fafafa]"
-              : "text-zinc-500 hover:text-zinc-400"
+              ? "text-[#fafafa] bg-zinc-900"
+              : "text-zinc-500 hover:text-zinc-400",
           )}
         >
           Trades
-          {activeTab === "trades" && (
-            <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#fafafa]" />
-          )}
         </button>
       </div>
 
       {/* ─── Trades Tab ─── */}
-      {activeTab === "trades" && <RecentTrades />}
+      {activeTab === "trades" && (
+        <div className="flex-1 h-0 min-h-0 overflow-hidden ">
+          <div className="h-full overflow-y-auto overflow-x-hidden">
+            <RecentTrades />
+          </div>
+        </div>
+      )}
 
       {/* ─── Book Tab ─── */}
       {activeTab === "book" && (
@@ -327,7 +430,7 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
                   "p-1 rounded transition-colors",
                   viewMode === "asks"
                     ? "bg-white/[0.06]"
-                    : "hover:bg-white/[0.04]"
+                    : "hover:bg-white/[0.04]",
                 )}
                 title="Asks only"
               >
@@ -339,7 +442,7 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
                   "p-1 rounded transition-colors",
                   viewMode === "split"
                     ? "bg-white/[0.06]"
-                    : "hover:bg-white/[0.04]"
+                    : "hover:bg-white/[0.04]",
                 )}
                 title="Split view"
               >
@@ -351,7 +454,7 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
                   "p-1 rounded transition-colors",
                   viewMode === "bids"
                     ? "bg-white/[0.06]"
-                    : "hover:bg-white/[0.04]"
+                    : "hover:bg-white/[0.04]",
                 )}
                 title="Bids only"
               >
@@ -385,7 +488,7 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
             <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
               {/* Asks Section */}
               {viewMode !== "bids" && (
-                <div className="flex flex-col justify-end flex-1 min-h-0 overflow-hidden">
+                <div className="flex flex-col justify-end flex-1 min-h-0 overflow-y-auto overscroll-contain">
                   <div className="flex flex-col">
                     {displayAsks.map((entry) => (
                       <OrderRow
@@ -411,7 +514,7 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
 
               {/* Bids Section */}
               {viewMode !== "asks" && (
-                <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
                   <div className="flex flex-col">
                     {displayBids.map((entry) => (
                       <OrderRow

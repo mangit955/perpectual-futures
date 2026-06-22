@@ -1,20 +1,9 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import {
-  OrderSide,
-  OrderType,
-  type TradeFormState,
-} from "@/types/trading";
+import { OrderSide, OrderType, type TradeFormState } from "@/types/trading";
 import { useLastPrice, formatPrice } from "@/hooks/use-market-feed";
-import {
-  ChevronDown,
-  Info,
-  DollarSign,
-  List,
-  Minus,
-  Plus,
-} from "lucide-react";
+import { ChevronDown, Info, DollarSign, List, Minus, Plus } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -27,7 +16,9 @@ function leverageFromPercent(percent: number): number {
 }
 
 function percentFromLeverage(leverage: number): number {
-  const index = LEVERAGE_STEPS.indexOf(leverage as (typeof LEVERAGE_STEPS)[number]);
+  const index = LEVERAGE_STEPS.indexOf(
+    leverage as (typeof LEVERAGE_STEPS)[number],
+  );
   if (index === -1) return 0;
   return (index / (LEVERAGE_STEPS.length - 1)) * 100;
 }
@@ -42,27 +33,37 @@ function SideToggle({
   onSideChange: (side: OrderSide) => void;
 }) {
   return (
-    <div className="rounded-lg bg-[#111113] p-1">
-      <div className="grid grid-cols-2 gap-1">
+    <div className="relative rounded-lg bg-[#111113] p-1">
+      {/* Sliding background */}
+      <div
+        className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-md transition-all duration-300 ease-out ${
+          side === OrderSide.Buy
+            ? "left-1 bg-emerald-500/15"
+            : "left-[calc(50%+2px)] bg-red-500/15"
+        }`}
+      />
+
+      <div className="relative grid grid-cols-2 gap-1">
         <button
           type="button"
-          className={`h-9 rounded-md text-sm font-medium transition-colors ${
-            side === OrderSide.Buy
-              ? "bg-emerald-600 text-white"
-              : "bg-transparent text-zinc-500 hover:text-zinc-400"
-          }`}
           onClick={() => onSideChange(OrderSide.Buy)}
+          className={`h-9 rounded-md text-sm cursor-pointer font-semibold transition-colors duration-300 ${
+            side === OrderSide.Buy
+              ? "text-emerald-400"
+              : "text-zinc-500 hover:text-emerald-600"
+          }`}
         >
           Buy / Long
         </button>
+
         <button
           type="button"
-          className={`h-9 rounded-md text-sm font-medium transition-colors ${
-            side === OrderSide.Sell
-              ? "bg-red-600 text-white"
-              : "bg-transparent text-zinc-500 hover:text-zinc-400"
-          }`}
           onClick={() => onSideChange(OrderSide.Sell)}
+          className={`h-9 rounded-md text-sm cursor-pointer font-semibold transition-colors duration-300 ${
+            side === OrderSide.Sell
+              ? "text-red-400"
+              : "text-zinc-500 hover:text-red-400"
+          }`}
         >
           Sell / Short
         </button>
@@ -81,7 +82,6 @@ function OrderTypeTabs({
   const tabs: { label: string; value: OrderType; hasDropdown?: boolean }[] = [
     { label: "Limit", value: OrderType.Limit },
     { label: "Market", value: OrderType.Market },
-    { label: "Conditional", value: OrderType.Conditional, hasDropdown: true },
   ];
 
   return (
@@ -90,10 +90,10 @@ function OrderTypeTabs({
         <button
           key={tab.value}
           type="button"
-          className={`relative pb-1.5 text-xs font-medium transition-colors ${
+          className={`relative cursor-pointer rounded-sm px-3  text-xs font-medium transition-colors ${
             orderType === tab.value
-              ? "text-[#fafafa] after:absolute after:inset-x-0 after:bottom-0 after:h-[1.5px] after:rounded-full after:bg-[#fafafa]"
-              : "text-zinc-500 hover:text-zinc-400"
+              ? "text-[#fafafa] bg-zinc-900"
+              : "text-zinc-500 hover:text-zinc-300"
           }`}
           onClick={() => onOrderTypeChange(tab.value)}
         >
@@ -155,10 +155,13 @@ function PriceInput({
       <div className="flex h-10 items-center rounded-lg border border-[#27272a] bg-[#111113] transition-colors focus-within:border-zinc-500">
         <button
           type="button"
+          disabled={disabled}
           onClick={handleDecrement}
-          className="flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-300"
+          className={`flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors ${disabled ? "cursor-not-allowed" : "hover:text-zinc-300"} disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          <Minus className="size-3" />
+          <Minus
+            className={`size-3 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+          />
         </button>
         <input
           type="text"
@@ -166,16 +169,23 @@ function PriceInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className="h-full w-full min-w-0 bg-transparent text-center font-mono text-sm text-[#fafafa] outline-none placeholder:text-zinc-600 disabled:opacity-50"
+          className="h-full w-full min-w-0 bg-transparent text-center font-mono text-sm text-[#fafafa] outline-none placeholder:text-zinc-600 disabled:cursor-not-allowed disabled:opacity-50"
         />
         <button
           type="button"
+          disabled={disabled}
           onClick={handleIncrement}
-          className="flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-300"
+          className={`flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors ${disabled ? "cursor-not-allowed" : "hover:text-zinc-300"} disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          <Plus className="size-3" />
+          <Plus
+            className={`size-3 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+          />
         </button>
-        <div className="mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-700/60 text-zinc-400">
+        <div
+          className={`mr-2 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white ${
+            disabled ? "bg-zinc-800 cursor-not-allowed" : "bg-green-700"
+          }`}
+        >
           <DollarSign className="size-3" />
         </div>
       </div>
@@ -214,7 +224,7 @@ function QuantityInput({
           onClick={handleDecrement}
           className="flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-300"
         >
-          <Minus className="size-3" />
+          <Minus className="size-3 cursor-pointer" />
         </button>
         <input
           type="text"
@@ -228,7 +238,7 @@ function QuantityInput({
           onClick={handleIncrement}
           className="flex h-full w-8 shrink-0 items-center justify-center text-zinc-500 transition-colors hover:text-zinc-300"
         >
-          <Plus className="size-3" />
+          <Plus className="size-3 cursor-pointer" />
         </button>
         <button
           type="button"
@@ -272,7 +282,7 @@ function LeverageSlider({
 
           {/* Active track fill */}
           <div
-            className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-blue-500"
+            className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-blue-500 transition-all duration-300 ease-out"
             style={{ width: `${value}%` }}
           />
 
@@ -284,7 +294,7 @@ function LeverageSlider({
               style={{ left: `${tick}%` }}
             >
               <div
-                className={`size-2 -translate-x-1/2 rounded-full border-2 ${
+                className={`size-2 -translate-x-1/2 rounded-full border-2 transition-all duration-300 ${
                   tick <= value
                     ? "border-blue-500 bg-blue-500"
                     : "border-[#27272a] bg-[#111113]"
@@ -306,7 +316,7 @@ function LeverageSlider({
 
           {/* Visible thumb */}
           <div
-            className="pointer-events-none absolute top-1/2 -translate-y-1/2"
+            className="pointer-events-none absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-out"
             style={{ left: `${value}%` }}
           >
             <div className="size-3.5 -translate-x-1/2 rounded-full border-2 border-blue-500 bg-white shadow-sm" />
@@ -343,7 +353,9 @@ function InfoRow({
   return (
     <div className="flex items-center justify-between">
       <span className="text-xs text-zinc-400">{label}</span>
-      <span className={`font-mono text-xs ${valueClassName ?? "text-zinc-300"}`}>
+      <span
+        className={`font-mono text-xs ${valueClassName ?? "text-zinc-300"}`}
+      >
         {value}
       </span>
     </div>
@@ -379,11 +391,7 @@ function OptionCheckbox({
         }`}
       >
         {checked && (
-          <svg
-            viewBox="0 0 12 12"
-            fill="none"
-            className="size-2.5 text-white"
-          >
+          <svg viewBox="0 0 12 12" fill="none" className="size-2.5 text-white">
             <path
               d="M2.5 6L5 8.5L9.5 3.5"
               stroke="currentColor"
@@ -431,15 +439,18 @@ export function TradePanel() {
   // ─── Derived values ──────────────────────────────────────────────────────
 
   const price = useMemo(() => parseFloat(form.price) || 0, [form.price]);
-  const quantity = useMemo(() => parseFloat(form.quantity) || 0, [form.quantity]);
+  const quantity = useMemo(
+    () => parseFloat(form.quantity) || 0,
+    [form.quantity],
+  );
   const leverage = useMemo(
     () => leverageFromPercent(form.sliderPercent),
-    [form.sliderPercent]
+    [form.sliderPercent],
   );
   const orderValue = useMemo(() => price * quantity, [price, quantity]);
   const marginRequired = useMemo(
     () => (leverage > 0 ? orderValue / leverage : 0),
-    [orderValue, leverage]
+    [orderValue, leverage],
   );
 
   // ─── Updaters ────────────────────────────────────────────────────────────
@@ -448,7 +459,7 @@ export function TradePanel() {
     <K extends keyof TradeFormState>(key: K, value: TradeFormState[K]) => {
       setForm((prev) => ({ ...prev, [key]: value }));
     },
-    []
+    [],
   );
 
   const handleSetMidPrice = useCallback(() => {
@@ -463,7 +474,7 @@ export function TradePanel() {
   const isBuy = form.side === OrderSide.Buy;
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex h-full border rounded-lg p-2 border-[#1e1e22] flex-col p-4">
       <div className="space-y-3">
         {/* ─── 1. Buy/Sell Toggle ─────────────────────────────────────────── */}
         <SideToggle
@@ -512,13 +523,7 @@ export function TradePanel() {
             <span className="font-mono text-xl font-semibold text-[#fafafa]">
               {formatPrice(orderValue)}
             </span>
-            <div
-              className={`flex size-5 items-center justify-center rounded-full ${
-                isBuy
-                  ? "bg-emerald-500/20 text-emerald-500"
-                  : "bg-red-500/20 text-red-500"
-              }`}
-            >
+            <div className="flex size-5 items-center justify-center rounded-full bg-yellow-600 text-white">
               <DollarSign className="size-3" />
             </div>
           </div>
@@ -536,10 +541,10 @@ export function TradePanel() {
         {/* ─── 9. Action Button ──────────────────────────────────────────── */}
         <button
           type="button"
-          className={`h-10 w-full rounded-lg text-sm font-semibold text-white transition-colors ${
+          className={`h-10 w-full cursor-pointer rounded-lg text-sm font-semibold text-white transition-colors ${
             isBuy
-              ? "bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700"
-              : "bg-red-600 hover:bg-red-500 active:bg-red-700"
+              ? "bg-emerald-600 hover:bg-emerald-500"
+              : "bg-red-500/70 hover:bg-red-500 "
           }`}
         >
           {isBuy ? "Buy / Long" : "Sell / Short"}
@@ -572,34 +577,6 @@ export function TradePanel() {
             />
           </div>
         </div>
-      </div>
-
-      {/* ─── 11. Cross Margin Overview ─────────────────────────────────── */}
-      <div className="mt-auto border-t border-[#1e1e22] pt-3">
-        <button
-          type="button"
-          onClick={() => setMarginExpanded((prev) => !prev)}
-          className="flex w-full items-center justify-between text-xs text-zinc-400 transition-colors hover:text-zinc-300"
-        >
-          <span className="flex items-center gap-1">
-            Cross Margin Overview
-            <Info className="size-3" />
-          </span>
-          <ChevronDown
-            className={`size-3 transition-transform ${
-              marginExpanded ? "rotate-180" : ""
-            }`}
-          />
-        </button>
-
-        {marginExpanded && (
-          <div className="mt-2 space-y-1.5">
-            <InfoRow label="Total Equity" value="$0.00" />
-            <InfoRow label="Available Balance" value="$0.00" />
-            <InfoRow label="Unrealized PnL" value="$0.00" />
-            <InfoRow label="Margin Ratio" value="—" />
-          </div>
-        )}
       </div>
     </div>
   );

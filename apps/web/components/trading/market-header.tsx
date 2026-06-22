@@ -7,7 +7,13 @@ import type { MarketData } from "@/types/trading";
 
 // ─── MarketPill ──────────────────────────────────────────────────────────────
 
-function MarketPill({ symbol, maxLeverage }: { symbol: string; maxLeverage: number }) {
+function MarketPill({
+  symbol,
+  maxLeverage,
+}: {
+  symbol: string;
+  maxLeverage: number;
+}) {
   return (
     <button className="flex items-center gap-2 rounded-md border border-[#27272a] bg-[#111113] px-3 py-1.5 transition-colors hover:border-zinc-600">
       {/* Green status dot */}
@@ -43,13 +49,13 @@ function PriceDisplay({
   return (
     <div className="flex flex-col justify-center border-r border-[#1e1e22] px-4">
       <span
-        className={`font-mono text-lg font-semibold leading-tight ${
-          isPositive ? "text-emerald-400" : "text-red-400"
+        className={` text-lg font-semibold leading-tight ${
+          isPositive ? "text-emerald-500" : "text-red-400"
         }`}
       >
         {formatPrice(lastPrice, 2)}
       </span>
-      <span className="font-mono text-[11px] text-zinc-500 leading-tight">
+      <span className="font-normal text-[11px] text-zinc-500 leading-tight">
         Mark {formatPrice(markPrice, 2)}
       </span>
     </div>
@@ -66,7 +72,13 @@ interface DataCardProps {
   subValueClass?: string;
 }
 
-function DataCard({ label, value, valueClass, subValue, subValueClass }: DataCardProps) {
+function DataCard({
+  label,
+  value,
+  valueClass,
+  subValue,
+  subValueClass,
+}: DataCardProps) {
   return (
     <div className="flex shrink-0 flex-col gap-0.5">
       <span className="text-[11px] leading-none text-zinc-500 whitespace-nowrap">
@@ -74,7 +86,7 @@ function DataCard({ label, value, valueClass, subValue, subValueClass }: DataCar
       </span>
       <div className="flex items-baseline gap-1">
         <span
-          className={`font-mono text-xs leading-none whitespace-nowrap ${
+          className={`font-normal text-xs leading-none whitespace-nowrap ${
             valueClass ?? "text-zinc-300"
           }`}
         >
@@ -82,7 +94,7 @@ function DataCard({ label, value, valueClass, subValue, subValueClass }: DataCar
         </span>
         {subValue && (
           <span
-            className={`font-mono text-xs leading-none whitespace-nowrap ${
+            className={`font-normal text-xs leading-none whitespace-nowrap ${
               subValueClass ?? "text-zinc-300"
             }`}
           >
@@ -98,9 +110,7 @@ function DataCard({ label, value, valueClass, subValue, subValueClass }: DataCar
 
 function Skeleton({ className }: { className?: string }) {
   return (
-    <div
-      className={`animate-pulse rounded bg-zinc-800 ${className ?? ""}`}
-    />
+    <div className={`animate-pulse rounded bg-zinc-800 ${className ?? ""}`} />
   );
 }
 
@@ -126,10 +136,10 @@ function MarketHeaderSkeleton() {
 
 function buildDataCards(data: MarketData): DataCardProps[] {
   const isChangePositive = data.change24h >= 0;
-  const changeColor = isChangePositive ? "text-emerald-400" : "text-red-400";
+  const changeColor = isChangePositive ? "text-emerald-500" : "text-red-400";
 
   const isFundingPositive = data.fundingRate >= 0;
-  const fundingColor = isFundingPositive ? "text-emerald-400" : "text-red-400";
+  const fundingColor = isFundingPositive ? "text-amber-400" : "text-red-400";
 
   return [
     {
@@ -185,7 +195,13 @@ function formatOI(value: number): string {
 
 // ─── ScrollIndicator ─────────────────────────────────────────────────────────
 
-function ScrollIndicator({ visible, onClick }: { visible: boolean; onClick: () => void }) {
+function ScrollIndicator({
+  visible,
+  onClick,
+}: {
+  visible: boolean;
+  onClick: () => void;
+}) {
   if (!visible) return null;
 
   return (
@@ -237,7 +253,7 @@ export function MarketHeader() {
   const dataCards = buildDataCards(marketData);
 
   return (
-    <div className="relative flex h-14 w-full items-center border-b border-[#1e1e22] bg-[#0d0d0f] px-4">
+    <div className="relative flex h-14 w-full items-center border rounded-sm border-[#1e1e22] bg-[#0d0d0f] px-4">
       {/* Market Pill */}
       <MarketPill
         symbol={marketData.symbol}

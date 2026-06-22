@@ -534,7 +534,7 @@ export function PositionsTable() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-[200px] flex-col rounded-lg border border-[#1e1e22] bg-[#0d0d0f]">
+    <div className="flex min-h-[240px] max-h-[360px] flex-col bg-[#0d0d0f]">
       {/* Tab bar */}
       <div className="flex items-center gap-0 border-b border-[#1e1e22] px-1">
         {TABS.map((tab) => {

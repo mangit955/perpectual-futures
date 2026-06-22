@@ -1,14 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Search,
-  Grid3X3,
-  Gift,
-  Clock,
-  Bell,
-  ChevronDown,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { Search, Grid3X3, Gift, Clock, Bell, ChevronDown } from "lucide-react";
 
 // ─── Nav Link Data ───────────────────────────────────────────────────────────
 
@@ -17,14 +11,25 @@ interface NavLink {
   href: string;
   active: boolean;
   hasDropdown?: boolean;
+  disabled?: boolean;
 }
 
 const navLinks: NavLink[] = [
-  { label: "Spot", href: "/spot", active: false },
+  { label: "Spot", href: "/spot", active: false, disabled: true },
+
   { label: "Futures", href: "/futures", active: true },
-  { label: "Lend", href: "/lend", active: false },
-  { label: "Vault", href: "/vault", active: false },
-  { label: "More", href: "#", active: false, hasDropdown: true },
+
+  { label: "Lend", href: "/lend", active: false, disabled: true },
+
+  { label: "Vault", href: "/vault", active: false, disabled: true },
+
+  {
+    label: "More",
+    href: "#",
+    active: false,
+    hasDropdown: true,
+    disabled: true,
+  },
 ];
 
 // ─── FluxLogo ────────────────────────────────────────────────────────────────
@@ -33,32 +38,43 @@ function FluxLogo() {
   return (
     <div className="flex items-center gap-2 pr-4">
       <svg
-        width="20"
-        height="16"
-        viewBox="0 0 20 16"
+        width="22"
+        height="22"
+        viewBox="0 0 26 26"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="text-white"
+        aria-hidden="true"
       >
-        <path
-          d="M1 2C3.5 0.5 7 0 10 2C13 4 16.5 3.5 19 2"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
+        <rect
+          x="3"
+          y="6"
+          width="4"
+          height="15"
+          rx="2"
+          fill="white"
+          transform="rotate(-18 3 6)"
         />
-        <path
-          d="M1 8C3.5 6.5 7 6 10 8C13 10 16.5 9.5 19 8"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
+        <rect
+          x="10.5"
+          y="3"
+          width="4"
+          height="18"
+          rx="2"
+          fill="white"
+          transform="rotate(-18 10.5 3)"
         />
-        <path
-          d="M1 14C3.5 12.5 7 12 10 14C13 16 16.5 15.5 19 14"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
+        <rect
+          x="18"
+          y="1"
+          width="4"
+          height="21"
+          rx="2"
+          fill="white"
+          opacity="0.35"
+          transform="rotate(-18 18 1)"
         />
       </svg>
+
       <span className="text-lg font-semibold text-white tracking-tight">
         flux
       </span>
@@ -78,7 +94,7 @@ function SearchBar() {
       if (
         e.key === "/" &&
         !["INPUT", "TEXTAREA", "SELECT"].includes(
-          (e.target as HTMLElement).tagName
+          (e.target as HTMLElement).tagName,
         )
       ) {
         e.preventDefault();
@@ -92,9 +108,7 @@ function SearchBar() {
   return (
     <div
       className={`relative flex h-8 w-[180px] items-center gap-1.5 rounded-md border bg-[#18181b] px-2.5 transition-colors ${
-        focused
-          ? "border-zinc-500"
-          : "border-[#27272a] hover:border-zinc-600"
+        focused ? "border-zinc-500" : "border-[#27272a] hover:border-zinc-600"
       }`}
     >
       <Search className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
@@ -120,16 +134,18 @@ function SearchBar() {
 function NavItem({ link }: { link: NavLink }) {
   return (
     <button
+      disabled={link.disabled}
       className={`flex items-center gap-0.5 rounded-md px-2.5 py-1.5 text-sm font-medium transition-colors ${
         link.active
           ? "text-white"
-          : "text-zinc-400 hover:text-zinc-200"
+          : link.disabled
+            ? "cursor-not-allowed text-zinc-400"
+            : "cursor-pointer text-zinc-400 hover:text-zinc-200"
       }`}
     >
       {link.label}
-      {link.hasDropdown && (
-        <ChevronDown className="h-3 w-3 text-zinc-500" />
-      )}
+
+      {link.hasDropdown && <ChevronDown className="h-3 w-3 text-zinc-500" />}
     </button>
   );
 }
@@ -173,7 +189,9 @@ export function NavigationBar() {
     <header className="flex h-12 w-full items-center border-b border-[#1e1e22] bg-[#0d0d0f] px-4">
       {/* Left: Logo + Nav Links */}
       <div className="flex items-center">
-        <FluxLogo />
+        <Link href="/" className="cursor-pointer">
+          <FluxLogo />
+        </Link>
         <nav className="flex items-center gap-1">
           {navLinks.map((link) => (
             <NavItem key={link.label} link={link} />
@@ -189,10 +207,10 @@ export function NavigationBar() {
         <SearchBar />
 
         {/* Deposit / Withdraw */}
-        <button className="h-8 rounded-full border border-green-500 px-4 text-xs font-medium text-green-500 transition-colors hover:bg-green-500/10">
+        <button className="h-8 rounded-md px-4 text-xs font-semibold! text-emerald-600 hover:text-green-700 bg-green-600/20 cursor-pointer transition-colors hover:bg-green-600/15">
           Deposit
         </button>
-        <button className="h-8 rounded-full bg-zinc-800 px-4 text-xs font-medium text-white transition-colors hover:bg-zinc-700">
+        <button className="h-8 font-semibold! rounded-md text-blue-600 hover:text-blue-700 bg-blue-600/20 px-4 cursor-pointer text-xs transition-colors hover:bg-blue-600/15">
           Withdraw
         </button>
 
