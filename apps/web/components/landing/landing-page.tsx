@@ -206,18 +206,18 @@ function HeroSection() {
           Built for traders who{" "}
           <CanvasText
             text="don't settle"
-            backgroundClassName="bg-blue-600 dark:bg-blue-700"
+            backgroundClassName="bg-zinc-700 dark:bg-zinc-800"
             colors={[
-              "rgba(0, 153, 255, 1)",
-              "rgba(0, 153, 255, 0.9)",
-              "rgba(0, 153, 255, 0.8)",
-              "rgba(0, 153, 255, 0.7)",
-              "rgba(0, 153, 255, 0.6)",
-              "rgba(0, 153, 255, 0.5)",
-              "rgba(0, 153, 255, 0.4)",
-              "rgba(0, 153, 255, 0.3)",
-              "rgba(0, 153, 255, 0.2)",
-              "rgba(0, 153, 255, 0.1)",
+              "rgba(180, 180, 180, 1)",
+              "rgba(180, 180, 180, 0.9)",
+              "rgba(180, 180, 180, 0.8)",
+              "rgba(180, 180, 180, 0.7)",
+              "rgba(180, 180, 180, 0.6)",
+              "rgba(180, 180, 180, 0.5)",
+              "rgba(180, 180, 180, 0.4)",
+              "rgba(180, 180, 180, 0.3)",
+              "rgba(180, 180, 180, 0.2)",
+              "rgba(180, 180, 180, 0.1)",
             ]}
             lineGap={4}
             animationDuration={20}
@@ -235,19 +235,60 @@ function HeroSection() {
           className="mt-9 flex flex-col gap-3 sm:flex-row"
           variants={fadeUp}
         >
-          <a
+          <motion.a
+            href="#cta"
+            initial="rest"
+            animate="rest"
+            whileHover="hover"
             className={cn(
               buttonVariants({ variant: "primary", size: "lg" }),
-              "text-zinc-900",
+              "group text-zinc-900",
             )}
-            href="#cta"
           >
             <span className="relative z-10 text-zinc-950">Launch Exchange</span>
-            <ArrowRight
-              className="relative z-10 h-4 w-4 text-zinc-950"
-              aria-hidden="true"
-            />
-          </a>
+
+            <span className="relative ml-1 h-4 w-4 overflow-hidden">
+              <motion.span
+                variants={{
+                  rest: {
+                    x: 0,
+                    opacity: 1,
+                  },
+                  hover: {
+                    x: 12,
+                    opacity: 0,
+                  },
+                }}
+                transition={{
+                  duration: 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <ChevronRight className="h-4 w-4 text-zinc-950" />
+              </motion.span>
+
+              <motion.span
+                variants={{
+                  rest: {
+                    x: -12,
+                    opacity: 0,
+                  },
+                  hover: {
+                    x: 0,
+                    opacity: 1,
+                  },
+                }}
+                transition={{
+                  duration: 0.2,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <ArrowRight className="h-4 w-4 text-zinc-950" />
+              </motion.span>
+            </span>
+          </motion.a>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
             href={docsHref}
@@ -568,7 +609,10 @@ function DeveloperSection() {
       <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
         <div>
           <h2 className="mt-4 max-w-xl text-3xl font-semibold leading-tight tracking-normal sm:text-5xl">
-            Predictable APIs for teams that ship trading systems.
+            Predictable APIs{" "}
+            <span className="text-neutral-500">
+              for teams that ship trading systems.
+            </span>
           </h2>
           <p className="mt-5 max-w-xl text-base leading-8 text-zinc-400">
             Order submission, market discovery, account queries, and WebSocket
@@ -687,7 +731,15 @@ function RoadmapSection() {
       <div className="mx-auto max-w-5xl">
         <SectionHeading
           eyebrow="Roadmap"
-          title="A pragmatic path from reference backend to production surface."
+          title={
+            <>
+              <span className="text-neutral-500">A </span>
+              pragmatic path{" "}
+              <span className="text-neutral-500">
+                from reference backend to production surface.
+              </span>
+            </>
+          }
           description="Future milestones focus on integration quality, operator confidence, and scaling the same clear architecture."
         />
         <div className="mt-14">
