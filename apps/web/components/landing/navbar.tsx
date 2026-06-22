@@ -86,7 +86,7 @@ export function Navbar() {
         className={cn(
           "flex w-full items-center justify-between px-5 transition-all duration-300 sm:px-7 lg:px-8",
           scrolled
-            ? "h-16 rounded-[1.35rem] border border-white/[0.11] bg-[#09090b]/86 shadow-[0_18px_60px_rgba(0,0,0,0.34),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-2xl"
+            ? "h-16 rounded-[1.35rem] border border-white/[0.11] bg-[#09090b]/86 shadow-[0_18px_60px_rgba(0,0,0,0.34),0_1px_0_rgba(255,255,255,0.05)_inset] backdrop-blur-xl"
             : "h-20 border border-transparent bg-transparent",
         )}
       >

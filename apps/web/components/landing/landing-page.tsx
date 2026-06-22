@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
 import Image from "next/image";
 import { FaGithub } from "react-icons/fa";
+import { Cover } from "@/components/ui/cover";
 import {
   ArrowRight,
   BookOpen,
@@ -33,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { CanvasText } from "../ui/canvas-text";
 import { PulsatingButton } from "../ui/pulsating-button";
 import WorldMap from "../ui/world-map";
+import Link from "next/link";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = `${githubHref}/tree/main/docs`;
@@ -203,28 +205,15 @@ function HeroSection() {
           className="max-w-4xl text-balance text-5xl font-semibold leading-[1.03] tracking-normal text-zinc-50 sm:text-6xl lg:text-7xl"
           variants={fadeUp}
         >
-          Built for traders who{" "}
-          <CanvasText
-            text="don't settle"
-            backgroundClassName="bg-zinc-700 dark:bg-zinc-800"
-            colors={[
-              "rgba(180, 180, 180, 1)",
-              "rgba(180, 180, 180, 0.9)",
-              "rgba(180, 180, 180, 0.8)",
-              "rgba(180, 180, 180, 0.7)",
-              "rgba(180, 180, 180, 0.6)",
-              "rgba(180, 180, 180, 0.5)",
-              "rgba(180, 180, 180, 0.4)",
-              "rgba(180, 180, 180, 0.3)",
-              "rgba(180, 180, 180, 0.2)",
-              "rgba(180, 180, 180, 0.1)",
-            ]}
-            lineGap={4}
-            animationDuration={20}
-          />
+          <span className="text-neutral-500 font-extrabold">
+            Built for traders who
+          </span>{" "}
+          <Cover className="font-semibold tracking-[-0.03em] font-light text-neutral-200! ">
+            don't settle
+          </Cover>
         </motion.h1>
         <motion.p
-          className="mt-6 max-w-2xl text-pretty text-base leading-8 text-zinc-400 sm:text-lg"
+          className="mt-6 max-w-2xl text-pretty text-base leading-8 text-neutral-600 sm:text-lg"
           variants={fadeUp}
         >
           A modern exchange backend with event-driven architecture, low latency
@@ -235,60 +224,61 @@ function HeroSection() {
           className="mt-9 flex flex-col gap-3 sm:flex-row"
           variants={fadeUp}
         >
-          <motion.a
-            href="#cta"
-            initial="rest"
-            animate="rest"
-            whileHover="hover"
-            className={cn(
-              buttonVariants({ variant: "primary", size: "lg" }),
-              "group text-zinc-900",
-            )}
-          >
-            <span className="relative z-10 text-zinc-950">Launch Exchange</span>
+          <motion.div initial="rest" animate="rest" whileHover="hover">
+            <Link
+              href="/trade"
+              className={cn(
+                buttonVariants({ variant: "primary", size: "lg" }),
+                "group text-zinc-900",
+              )}
+            >
+              <span className="relative z-10 text-zinc-950">
+                Launch Exchange
+              </span>
 
-            <span className="relative ml-1 h-4 w-4 overflow-hidden">
-              <motion.span
-                variants={{
-                  rest: {
-                    x: 0,
-                    opacity: 1,
-                  },
-                  hover: {
-                    x: 12,
-                    opacity: 0,
-                  },
-                }}
-                transition={{
-                  duration: 0.2,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <ChevronRight className="h-4 w-4 text-zinc-950" />
-              </motion.span>
+              <span className="relative ml-1 h-4 w-4 overflow-hidden">
+                <motion.span
+                  variants={{
+                    rest: {
+                      x: 0,
+                      opacity: 1,
+                    },
+                    hover: {
+                      x: 12,
+                      opacity: 0,
+                    },
+                  }}
+                  transition={{
+                    duration: 0.2,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <ChevronRight className="h-4 w-4 text-zinc-950" />
+                </motion.span>
 
-              <motion.span
-                variants={{
-                  rest: {
-                    x: -12,
-                    opacity: 0,
-                  },
-                  hover: {
-                    x: 0,
-                    opacity: 1,
-                  },
-                }}
-                transition={{
-                  duration: 0.2,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
-                <ArrowRight className="h-4 w-4 text-zinc-950" />
-              </motion.span>
-            </span>
-          </motion.a>
+                <motion.span
+                  variants={{
+                    rest: {
+                      x: -12,
+                      opacity: 0,
+                    },
+                    hover: {
+                      x: 0,
+                      opacity: 1,
+                    },
+                  }}
+                  transition={{
+                    duration: 0.2,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <ArrowRight className="h-4 w-4 text-zinc-950" />
+                </motion.span>
+              </span>
+            </Link>
+          </motion.div>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
             href={docsHref}
@@ -329,7 +319,13 @@ function ArchitectureSection() {
       <div className="mx-auto max-w-7xl">
         <SectionHeading
           eyebrow="Architecture"
-          title="A clean execution pipeline from intent to recovery."
+          title={
+            <>
+              <span className="text-neutral-500">A clean </span>execution
+              pipeline{" "}
+              <span className="text-neutral-500">from intent to recovery.</span>
+            </>
+          }
           description="The public API stays separate from the matching hot path. Commands are ordered, events are replayable, and durable state catches up through workers."
         />
         <ExchangePreview />
@@ -787,7 +783,7 @@ function CtaSection() {
               buttonVariants({ variant: "primary", size: "lg" }),
               "text-gray-950!",
             )}
-            href="#developer"
+            href="/trade"
           >
             Launch App
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -967,7 +963,7 @@ function SectionHeading({
       <p
         className={cn(
           "mt-5 text-base leading-8",
-          isLight ? "text-zinc-600" : "text-neutral-600",
+          isLight ? "text-neutral-600" : "text-neutral-600",
         )}
       >
         {description}
