@@ -1,0 +1,212 @@
+// ─── API Types (mirroring packages/runtime/src/types.ts) ─────────────────────
+
+export interface ApiBalance {
+  userId: string;
+  asset: string;
+  total: number;
+  locked: number;
+}
+
+export interface ApiOrder {
+  id: string;
+  userId: string;
+  marketId: string;
+  side: "BUY" | "SELL" | "buy" | "sell";
+  type: "MARKET" | "LIMIT" | "market" | "limit";
+  quantity: number;
+  remainingQuantity: number;
+  price?: number;
+  timeInForce: "GTC" | "IOC";
+  reduceOnly: boolean;
+  postOnly: boolean;
+  status:
+    | "PENDING"
+    | "OPEN"
+    | "PARTIALLY_FILLED"
+    | "FILLED"
+    | "CANCELLED"
+    | "REJECTED"
+    | "EXPIRED";
+  rejectionReason?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ApiFill {
+  id: string;
+  tradeId: string;
+  orderId: string;
+  userId: string;
+  marketId: string;
+  side: "BUY" | "SELL";
+  liquidityRole: "MAKER" | "TAKER";
+  price: number;
+  quantity: number;
+  notional: number;
+  fee: number;
+  realizedPnl: number;
+  createdAt: number;
+}
+
+/** Shape returned by GET /positions (from packages/risk's Position type) */
+export interface ApiPosition {
+  userId: string;
+  marketId: string;
+  side: "LONG" | "SHORT";
+  quantity: number;
+  entryPrice: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  margin: number;
+  leverage: number;
+  liquidationPrice: number;
+  markPrice: number;
+  // Some runtimes may add extra fields
+  [key: string]: unknown;
+}
+
+export interface ApiMarket {
+  id: string;
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  status: "ACTIVE" | "PAUSED";
+  maxLeverage: number;
+  [key: string]: unknown;
+}
+
+export interface SubmitOrderPayload {
+  marketId: string;
+  side: "buy" | "sell";
+  type: "limit" | "market";
+  quantity: number | string;
+  price?: number | string;
+  leverage?: number | string;
+  timeInForce?: "GTC" | "IOC";
+  reduceOnly?: boolean;
+  postOnly?: boolean;
+}
+
+// ─── Client ──────────────────────────────────────────────────────────────────
+
+const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+class ApiError extends Error {
+  constructor(
+    public code: string,
+    public status: number,
+    message?: string,
+  ) {
+    super(message ?? code);
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(
+  path: string,
+  options: RequestInit = {},
+  token?: string,
+): Promise<T> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(options.headers as Record<string, string> | undefined),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+  const data = (await res.json()) as T & { error?: { code: string; message: string } };
+
+  if (!res.ok) {
+    const err = (data as { error?: { code: string; message: string } }).error;
+    throw new ApiError(err?.code ?? "UNKNOWN", res.status, err?.message);
+  }
+
+  return data;
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export async function apiRegister(
+  email: string,
+  password: string,
+): Promise<{ userId: string }> {
+  return request("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function apiLogin(
+  email: string,
+  password: string,
+): Promise<{ token: string; userId: string }> {
+  return request("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+// ─── Markets ─────────────────────────────────────────────────────────────────
+
+export async function apiListMarkets(): Promise<ApiMarket[]> {
+  return request("/markets");
+}
+
+// ─── Balances ────────────────────────────────────────────────────────────────
+
+export async function apiGetBalances(token: string): Promise<ApiBalance[]> {
+  return request("/balances", {}, token);
+}
+
+// ─── Positions ───────────────────────────────────────────────────────────────
+
+export async function apiGetPositions(token: string): Promise<ApiPosition[]> {
+  return request("/positions", {}, token);
+}
+
+// ─── Orders ──────────────────────────────────────────────────────────────────
+
+export async function apiGetOrders(token: string): Promise<ApiOrder[]> {
+  return request("/orders", {}, token);
+}
+
+export async function apiSubmitOrder(
+  token: string,
+  payload: SubmitOrderPayload,
+): Promise<ApiOrder> {
+  return request(
+    "/orders",
+    { method: "POST", body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export async function apiCancelOrder(
+  token: string,
+  orderId: string,
+): Promise<{ orderId: string; status: string }> {
+  return request(`/orders/${orderId}`, { method: "DELETE" }, token);
+}
+
+// ─── Fills ───────────────────────────────────────────────────────────────────
+
+export async function apiGetFills(token: string): Promise<ApiFill[]> {
+  return request("/fills", {}, token);
+}
+
+// ─── Deposits (utility) ───────────────────────────────────────────────────────
+
+export async function apiDeposit(
+  token: string,
+  asset: string,
+  amount: number,
+): Promise<ApiBalance> {
+  return request(
+    "/deposits",
+    { method: "POST", body: JSON.stringify({ asset, amount }) },
+    token,
+  );
+}
+
+export { ApiError };

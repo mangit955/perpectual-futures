@@ -197,6 +197,18 @@ export function Navbar() {
               <ArrowUpRight className="h-4 w-4" />
             </motion.span>
           </motion.a>
+          <div className="hidden items-center gap-3 lg:flex">
+            <a
+              href="/signup"
+              className={cn(
+                buttonVariants({ size: "sm" }),
+                "border cursor-pointer bg-white text-black! font-medium",
+                "hover:bg-neutral-400 ",
+              )}
+            >
+              Sign Up !
+            </a>
+          </div>
         </div>
 
         <button
@@ -280,8 +292,8 @@ function NavLink({
     <a
       href={href}
       className={cn(
-        "relative rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200 hover:bg-white/[0.04] hover:text-zinc-50",
-        active ? "text-zinc-50" : "text-zinc-400 hover:text-zinc-50",
+        "relative rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200  hover:text-zinc-100!",
+        active ? "text-zinc-50" : "text-zinc-400! hover:text-zinc-50",
       )}
     >
       {active && (

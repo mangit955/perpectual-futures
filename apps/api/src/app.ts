@@ -14,9 +14,20 @@ export function createApiApp(options: ApiAppOptions = {}) {
     options.apiRuntime ??
     new InMemoryApiRuntime(options.runtime ?? new ExchangeRuntime());
 
+  const CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  };
+
   async function fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const method = request.method.toUpperCase();
+
+    // Handle CORS preflight
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
 
     try {
       if (method === "GET" && url.pathname === "/health") {
@@ -119,7 +130,20 @@ export function createApiApp(options: ApiAppOptions = {}) {
     }
   }
 
-  return { fetch, runtime };
+  function withCors(res: Response): Response {
+    for (const [key, value] of Object.entries(CORS_HEADERS)) {
+      res.headers.set(key, value);
+    }
+    return res;
+  }
+
+  const originalFetch = fetch;
+  const fetchWithCors: typeof fetch = async (request) => {
+    const res = await originalFetch(request);
+    return withCors(res);
+  };
+
+  return { fetch: fetchWithCors, runtime };
 }
 
 function authToken(request: Request): string | undefined {

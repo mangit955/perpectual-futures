@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { SmoothScroll } from "@/components/smooth-scroll";
+import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "Flux | Perpetual Futures Infrastructure",
@@ -16,7 +17,9 @@ export default function RootLayout({
   return (
     <html className="dark bg-[#09090b]" lang="en">
       <body className="bg-[#09090b] text-[#fafafa]">
-        <SmoothScroll>{children}</SmoothScroll>
+        <AuthProvider>
+          <SmoothScroll>{children}</SmoothScroll>
+        </AuthProvider>
       </body>
     </html>
   );

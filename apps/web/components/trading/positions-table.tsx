@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { motion } from "framer-motion";
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,14 +16,23 @@ import type {
   BottomTab,
 } from "@/types/trading";
 import { OrderSide, PositionSide } from "@/types/trading";
-import {
-  generatePositions,
-  generateOpenOrders,
-  generateOrderHistory,
-  generateTradeHistory,
-} from "@/lib/mock/market-data";
 import { formatPrice, formatDate } from "@/hooks/use-market-feed";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
+import {
+  useOrders,
+  useFills,
+  usePositions,
+  useOpenOrders,
+  useClosedOrders,
+} from "@/hooks/use-api-data";
+import {
+  type ApiOrder,
+  type ApiFill,
+  type ApiPosition,
+  apiCancelOrder,
+} from "@/lib/api";
+import { Loader2 } from "lucide-react";
 
 // ─── Tab config ──────────────────────────────────────────────────────────────
 
@@ -39,13 +49,89 @@ const TABS: TabConfig[] = [
   { id: "trade-history", label: "Trade History" },
 ];
 
+// ─── API → display type mappers ──────────────────────────────────────────────
+
+function apiOrderToOpenOrder(o: ApiOrder): OpenOrder {
+  const filled = o.quantity - o.remainingQuantity;
+  return {
+    id: o.id,
+    symbol: o.marketId,
+    side: o.side.toUpperCase() === "BUY" ? OrderSide.Buy : OrderSide.Sell,
+    type:
+      o.type.toUpperCase() === "MARKET"
+        ? ("market" as OpenOrder["type"])
+        : ("limit" as OpenOrder["type"]),
+    price: o.price ?? 0,
+    size: o.quantity,
+    filled,
+    remaining: o.remainingQuantity,
+    status: o.status === "PARTIALLY_FILLED" ? "partially_filled" : "open",
+    timestamp: o.createdAt,
+    reduceOnly: o.reduceOnly,
+    postOnly: o.postOnly,
+  };
+}
+
+function apiOrderToHistoryEntry(o: ApiOrder): OrderHistoryEntry {
+  const filled = o.quantity - o.remainingQuantity;
+  const status =
+    o.status === "FILLED"
+      ? "filled"
+      : o.status === "CANCELLED" || o.status === "REJECTED"
+        ? "cancelled"
+        : "expired";
+  return {
+    id: o.id,
+    symbol: o.marketId,
+    side: o.side.toUpperCase() === "BUY" ? OrderSide.Buy : OrderSide.Sell,
+    type:
+      o.type.toUpperCase() === "MARKET"
+        ? ("market" as OrderHistoryEntry["type"])
+        : ("limit" as OrderHistoryEntry["type"]),
+    price: o.price ?? 0,
+    size: o.quantity,
+    filled,
+    status,
+    fee: 0, // Fee is in fills, not orders
+    timestamp: o.createdAt,
+  };
+}
+
+function apiFillToTradeHistory(f: ApiFill): TradeHistoryEntry {
+  return {
+    id: f.id,
+    symbol: f.marketId,
+    side: f.side.toUpperCase() === "BUY" ? OrderSide.Buy : OrderSide.Sell,
+    price: f.price,
+    size: f.quantity,
+    fee: f.fee,
+    realizedPnl: f.realizedPnl,
+    timestamp: f.createdAt,
+  };
+}
+
+function apiPositionToPosition(p: ApiPosition): Position {
+  return {
+    id: `${p.userId}-${p.marketId}`,
+    symbol: p.marketId,
+    side: p.side === "LONG" ? PositionSide.Long : PositionSide.Short,
+    size: p.quantity,
+    entryPrice: p.entryPrice,
+    markPrice: p.markPrice ?? 0,
+    liquidationPrice: p.liquidationPrice ?? 0,
+    margin: p.margin ?? 0,
+    leverage: p.leverage ?? 1,
+    unrealizedPnl: p.unrealizedPnl ?? 0,
+    unrealizedPnlPercent:
+      p.margin > 0 ? ((p.unrealizedPnl ?? 0) / p.margin) * 100 : 0,
+    realizedPnl: p.realizedPnl ?? 0,
+    timestamp: Date.now(),
+  };
+}
+
 // ─── Status badge ────────────────────────────────────────────────────────────
 
-function StatusBadge({
-  status,
-}: {
-  status: string;
-}) {
+function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { bg: string; text: string; label: string }> = {
     open: {
       bg: "bg-zinc-500/10",
@@ -81,7 +167,7 @@ function StatusBadge({
       className={cn(
         "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium",
         c.bg,
-        c.text
+        c.text,
       )}
     >
       {c.label}
@@ -97,7 +183,7 @@ function PnlCell({ value, percent }: { value: number; percent?: number }) {
     <span
       className={cn(
         "font-mono",
-        isPositive ? "text-[#22c55e]" : "text-[#ef4444]"
+        isPositive ? "text-[#22c55e]" : "text-[#ef4444]",
       )}
     >
       {isPositive ? "+" : ""}
@@ -115,8 +201,7 @@ function PnlCell({ value, percent }: { value: number; percent?: number }) {
 // ─── Side cell ───────────────────────────────────────────────────────────────
 
 function SideCell({ side }: { side: OrderSide | PositionSide }) {
-  const isBull =
-    side === OrderSide.Buy || side === PositionSide.Long;
+  const isBull = side === OrderSide.Buy || side === PositionSide.Long;
   const label =
     side === PositionSide.Long
       ? "Long"
@@ -139,16 +224,27 @@ function DataTable<T>({
   data,
   columns,
   emptyMessage,
+  loading,
 }: {
   data: T[];
   columns: ColumnDef<T, unknown>[];
   emptyMessage: string;
+  loading?: boolean;
 }) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center gap-2 text-xs text-zinc-500">
+        <Loader2 className="size-3.5 animate-spin" />
+        Loading…
+      </div>
+    );
+  }
 
   if (data.length === 0) {
     return (
@@ -168,13 +264,16 @@ function DataTable<T>({
                 <th
                   key={header.id}
                   className="whitespace-nowrap border-b border-[#1e1e22] px-3 py-2 text-left text-xs font-normal uppercase text-zinc-500"
-                  style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                  style={{
+                    width:
+                      header.getSize() !== 150 ? header.getSize() : undefined,
+                  }}
                 >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
                         header.column.columnDef.header,
-                        header.getContext()
+                        header.getContext(),
                       )}
                 </th>
               ))}
@@ -192,10 +291,7 @@ function DataTable<T>({
                   key={cell.id}
                   className="whitespace-nowrap border-b border-[#1e1e22]/50 px-3 py-2 font-mono text-zinc-300"
                 >
-                  {flexRender(
-                    cell.column.columnDef.cell,
-                    cell.getContext()
-                  )}
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
               ))}
             </tr>
@@ -206,21 +302,84 @@ function DataTable<T>({
   );
 }
 
+// ─── Not-logged-in placeholder ────────────────────────────────────────────────
+
+function NotLoggedIn() {
+  return (
+    <div className="flex h-full items-center pt-16 justify-center text-xs text-zinc-500">
+      Log in to see your data
+    </div>
+  );
+}
+
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export function PositionsTable() {
   const [activeTab, setActiveTab] = useState<BottomTab>("positions");
+  const { token, isLoggedIn } = useAuth();
 
-  // Mock data – stable references via useMemo
-  const positions = useMemo(() => generatePositions(), []);
-  const openOrders = useMemo(() => generateOpenOrders(), []);
-  const orderHistory = useMemo(() => generateOrderHistory(), []);
-  const tradeHistory = useMemo(() => generateTradeHistory(), []);
+  // ─── Real API data ────────────────────────────────────────────────────────
+  const {
+    data: apiPositions,
+    loading: positionsLoading,
+    refetch: refetchPositions,
+  } = usePositions();
+  const {
+    data: apiAllOrders,
+    loading: ordersLoading,
+    refetch: refetchOrders,
+  } = useOrders();
+  const { data: apiFills, loading: fillsLoading } = useFills();
+
+  // ─── Derived data ──────────────────────────────────────────────────────────
+  const openOrdersRaw = useOpenOrders(apiAllOrders);
+  const closedOrdersRaw = useClosedOrders(apiAllOrders);
+
+  const positions = useMemo<Position[]>(
+    () => (apiPositions ?? []).map(apiPositionToPosition),
+    [apiPositions],
+  );
+  const openOrders = useMemo<OpenOrder[]>(
+    () => openOrdersRaw.map(apiOrderToOpenOrder),
+    [openOrdersRaw],
+  );
+  const orderHistory = useMemo<OrderHistoryEntry[]>(
+    () => closedOrdersRaw.map(apiOrderToHistoryEntry),
+    [closedOrdersRaw],
+  );
+  const tradeHistory = useMemo<TradeHistoryEntry[]>(
+    () => (apiFills ?? []).map(apiFillToTradeHistory),
+    [apiFills],
+  );
 
   const counts = {
     positions: positions.length,
     openOrders: openOrders.length,
   };
+
+  // ─── Cancel order ─────────────────────────────────────────────────────────
+
+  const [cancellingIds, setCancellingIds] = useState<Set<string>>(new Set());
+
+  const handleCancel = useCallback(
+    async (orderId: string) => {
+      if (!token) return;
+      setCancellingIds((prev) => new Set(prev).add(orderId));
+      try {
+        await apiCancelOrder(token, orderId);
+        refetchOrders();
+      } catch {
+        // Silently ignore; row will stay visible until next refetch
+      } finally {
+        setCancellingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(orderId);
+          return next;
+        });
+      }
+    },
+    [token, refetchOrders],
+  );
 
   // ─── Column definitions ──────────────────────────────────────────────────
 
@@ -314,7 +473,7 @@ export function PositionsTable() {
         ),
       },
     ],
-    []
+    [],
   );
 
   const openOrderColumns = useMemo<ColumnDef<OpenOrder, unknown>[]>(
@@ -387,14 +546,25 @@ export function PositionsTable() {
         id: "actions",
         header: "Actions",
         size: 70,
-        cell: () => (
-          <button className="rounded border border-[#ef4444]/30 px-2 py-0.5 text-[10px] text-[#ef4444] transition-colors hover:border-[#ef4444]/60 hover:bg-[#ef4444]/10">
-            Cancel
-          </button>
-        ),
+        cell: ({ row }) => {
+          const orderId = row.original.id;
+          const isCancelling = cancellingIds.has(orderId);
+          return (
+            <button
+              disabled={isCancelling}
+              onClick={() => handleCancel(orderId)}
+              className="rounded border border-[#ef4444]/30 px-2 py-0.5 text-[10px] text-[#ef4444] transition-colors hover:border-[#ef4444]/60 hover:bg-[#ef4444]/10 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              {isCancelling ? (
+                <Loader2 className="size-2.5 animate-spin" />
+              ) : null}
+              Cancel
+            </button>
+          );
+        },
       },
     ],
-    []
+    [cancellingIds, handleCancel],
   );
 
   const orderHistoryColumns = useMemo<ColumnDef<OrderHistoryEntry, unknown>[]>(
@@ -468,7 +638,7 @@ export function PositionsTable() {
         ),
       },
     ],
-    []
+    [],
   );
 
   const tradeHistoryColumns = useMemo<ColumnDef<TradeHistoryEntry, unknown>[]>(
@@ -528,15 +698,15 @@ export function PositionsTable() {
         cell: ({ getValue }) => <PnlCell value={getValue<number>()} />,
       },
     ],
-    []
+    [],
   );
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex min-h-[240px] max-h-[360px] flex-col bg-[#0d0d0f]">
+    <div className="flex min-h-[240px] max-h-[360px] flex-col rounded-sm bg-[#0d0d0f]">
       {/* Tab bar */}
-      <div className="flex items-center gap-0 border-b border-[#1e1e22] px-1">
+      <div className="flex items-center gap-0 border py-2 rounded-md border-[#1e1e22] px-1">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           const count = tab.countKey ? counts[tab.countKey] : undefined;
@@ -546,28 +716,35 @@ export function PositionsTable() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors",
+                "relative flex items-center cursor-pointer rounded-sm gap-1.5 px-2 py-1.5 text-xs font-medium transition-all duration-200",
                 isActive
                   ? "text-[#fafafa]"
-                  : "text-zinc-500 hover:text-zinc-400"
+                  : "text-zinc-500 hover:text-zinc-400",
               )}
             >
-              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="positions-tab-active"
+                  className="absolute inset-0 rounded-sm bg-zinc-900"
+                  transition={{
+                    type: "spring",
+                    stiffness: 400,
+                    damping: 30,
+                  }}
+                />
+              )}
+              <span className="relative z-10">{tab.label}</span>
               {count !== undefined && count > 0 && (
                 <span
                   className={cn(
-                    "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium",
+                    "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium relative z-10",
                     isActive
                       ? "bg-zinc-700 text-zinc-200"
-                      : "bg-zinc-800 text-zinc-500"
+                      : "bg-zinc-800 text-zinc-500",
                   )}
                 >
                   {count}
                 </span>
-              )}
-              {/* Active indicator line */}
-              {isActive && (
-                <span className="absolute bottom-0 left-3 right-3 h-[1px] bg-[#fafafa]" />
               )}
             </button>
           );
@@ -576,33 +753,43 @@ export function PositionsTable() {
 
       {/* Table content */}
       <div className="min-h-0 flex-1">
-        {activeTab === "positions" && (
-          <DataTable
-            data={positions}
-            columns={positionColumns}
-            emptyMessage="No open positions"
-          />
-        )}
-        {activeTab === "open-orders" && (
-          <DataTable
-            data={openOrders}
-            columns={openOrderColumns}
-            emptyMessage="No open orders"
-          />
-        )}
-        {activeTab === "order-history" && (
-          <DataTable
-            data={orderHistory}
-            columns={orderHistoryColumns}
-            emptyMessage="No order history"
-          />
-        )}
-        {activeTab === "trade-history" && (
-          <DataTable
-            data={tradeHistory}
-            columns={tradeHistoryColumns}
-            emptyMessage="No trade history"
-          />
+        {!isLoggedIn ? (
+          <NotLoggedIn />
+        ) : (
+          <>
+            {activeTab === "positions" && (
+              <DataTable
+                data={positions}
+                columns={positionColumns}
+                emptyMessage="No open positions"
+                loading={positionsLoading}
+              />
+            )}
+            {activeTab === "open-orders" && (
+              <DataTable
+                data={openOrders}
+                columns={openOrderColumns}
+                emptyMessage="No open orders"
+                loading={ordersLoading}
+              />
+            )}
+            {activeTab === "order-history" && (
+              <DataTable
+                data={orderHistory}
+                columns={orderHistoryColumns}
+                emptyMessage="No order history"
+                loading={ordersLoading}
+              />
+            )}
+            {activeTab === "trade-history" && (
+              <DataTable
+                data={tradeHistory}
+                columns={tradeHistoryColumns}
+                emptyMessage="No trade history"
+                loading={fillsLoading}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

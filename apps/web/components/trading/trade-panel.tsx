@@ -3,12 +3,18 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { OrderSide, OrderType, type TradeFormState } from "@/types/trading";
 import { useLastPrice, formatPrice } from "@/hooks/use-market-feed";
-import { ChevronDown, Info, DollarSign, List, Minus, Plus } from "lucide-react";
+import { ChevronDown, Info, DollarSign, List, Minus, Plus, Loader2 } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { useUsdcBalance } from "@/hooks/use-api-data";
+import { apiSubmitOrder, ApiError } from "@/lib/api";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const LEVERAGE_STEPS = [1, 2, 5, 10, 20, 50] as const;
 const SLIDER_TICKS = [0, 25, 50, 75, 100] as const;
+
+// Default market — in a real app this would come from a market selector context
+const DEFAULT_MARKET_ID = "BTC-PERP";
 
 function leverageFromPercent(percent: number): number {
   const index = Math.round((percent / 100) * (LEVERAGE_STEPS.length - 1));
@@ -407,10 +413,48 @@ function OptionCheckbox({
   );
 }
 
+// ─── Order Status Banner ──────────────────────────────────────────────────────
+
+function OrderBanner({
+  status,
+  message,
+  onDismiss,
+}: {
+  status: "success" | "error";
+  message: string;
+  onDismiss: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  return (
+    <div
+      className={`rounded-md px-3 py-2 text-xs flex items-center justify-between gap-2 ${
+        status === "success"
+          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+          : "bg-red-500/10 text-red-400 border border-red-500/20"
+      }`}
+    >
+      <span className="min-w-0 break-words">{message}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="shrink-0 text-current opacity-60 hover:opacity-100"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function TradePanel() {
   const lastPrice = useLastPrice();
+  const { token, isLoggedIn } = useAuth();
+  const availableBalance = useUsdcBalance();
 
   const [form, setForm] = useState<TradeFormState>({
     side: OrderSide.Buy,
@@ -426,6 +470,11 @@ export function TradePanel() {
   });
 
   const [marginExpanded, setMarginExpanded] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [banner, setBanner] = useState<{
+    status: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Sync price with live feed on mount (avoids SSR hydration mismatch)
   const priceInitialized = useRef(false);
@@ -471,6 +520,62 @@ export function TradePanel() {
     updateField("price", formatPrice(lastPrice));
   }, [lastPrice, updateField]);
 
+  // ─── Order submission ─────────────────────────────────────────────────────
+
+  const handleSubmitOrder = useCallback(async () => {
+    if (!isLoggedIn || !token) {
+      setBanner({ status: "error", message: "Please log in to place orders." });
+      return;
+    }
+    if (quantity <= 0) {
+      setBanner({ status: "error", message: "Quantity must be greater than 0." });
+      return;
+    }
+    if (form.orderType === OrderType.Limit && price <= 0) {
+      setBanner({ status: "error", message: "Price must be greater than 0 for limit orders." });
+      return;
+    }
+
+    setSubmitting(true);
+    setBanner(null);
+
+    try {
+      const order = await apiSubmitOrder(token, {
+        marketId: DEFAULT_MARKET_ID,
+        side: form.side === OrderSide.Buy ? "buy" : "sell",
+        type: form.orderType === OrderType.Market ? "market" : "limit",
+        quantity,
+        price: form.orderType === OrderType.Limit ? price : undefined,
+        leverage,
+        timeInForce: form.ioc ? "IOC" : "GTC",
+        reduceOnly: form.reduceOnly,
+        postOnly: form.postOnly,
+      });
+
+      if (order.status === "REJECTED") {
+        setBanner({
+          status: "error",
+          message: `Order rejected: ${order.rejectionReason ?? "Unknown reason"}`,
+        });
+      } else {
+        setBanner({
+          status: "success",
+          message: `Order placed — ${order.status.toLowerCase().replace("_", " ")} (${order.id})`,
+        });
+      }
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Failed to place order";
+      setBanner({ status: "error", message });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [isLoggedIn, token, quantity, price, form, leverage]);
+
   const isBuy = form.side === OrderSide.Buy;
 
   return (
@@ -491,7 +596,9 @@ export function TradePanel() {
         {/* ─── 3. Available Equity ───────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <span className="text-xs text-zinc-400">Available Equity</span>
-          <span className="font-mono text-xs text-zinc-400">$0.00</span>
+          <span className="font-mono text-xs text-zinc-400">
+            {isLoggedIn ? `$${formatPrice(availableBalance)}` : "—"}
+          </span>
         </div>
 
         {/* ─── 4. Price Input ────────────────────────────────────────────── */}
@@ -538,19 +645,39 @@ export function TradePanel() {
           <InfoRow label="Est. Liquidation Price" value="—" />
         </div>
 
-        {/* ─── 9. Action Button ──────────────────────────────────────────── */}
+        {/* ─── 9. Order banner ───────────────────────────────────────────── */}
+        {banner && (
+          <OrderBanner
+            status={banner.status}
+            message={banner.message}
+            onDismiss={() => setBanner(null)}
+          />
+        )}
+
+        {/* ─── 10. Action Button ─────────────────────────────────────────── */}
         <button
           type="button"
-          className={`h-10 w-full cursor-pointer rounded-lg text-sm font-semibold text-white transition-colors ${
+          disabled={submitting}
+          onClick={handleSubmitOrder}
+          className={`h-10 w-full cursor-pointer rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             isBuy
               ? "bg-emerald-600 hover:bg-emerald-500"
               : "bg-red-500/70 hover:bg-red-500 "
           }`}
         >
-          {isBuy ? "Buy / Long" : "Sell / Short"}
+          {submitting ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Placing order…
+            </>
+          ) : isLoggedIn ? (
+            isBuy ? "Buy / Long" : "Sell / Short"
+          ) : (
+            "Log in to trade"
+          )}
         </button>
 
-        {/* ─── 10. Option Checkboxes ─────────────────────────────────────── */}
+        {/* ─── 11. Option Checkboxes ─────────────────────────────────────── */}
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
             <OptionCheckbox

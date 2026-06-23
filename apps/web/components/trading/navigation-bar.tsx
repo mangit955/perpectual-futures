@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Grid3X3, Gift, Clock, Bell, ChevronDown } from "lucide-react";
+import { Search, Grid3X3, Gift, Clock, Bell, ChevronDown, LogOut } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
 
 // ─── Nav Link Data ───────────────────────────────────────────────────────────
 
@@ -172,13 +173,38 @@ function IconButton({
 // ─── UserAvatar ──────────────────────────────────────────────────────────────
 
 function UserAvatar() {
+  const { isLoggedIn, userId, logout } = useAuth();
+  const initials = userId ? userId.slice(0, 2).toUpperCase() : "?";
+
+  if (!isLoggedIn) {
+    return (
+      <button
+        aria-label="Log in"
+        className="h-8 rounded-md px-3 text-xs font-semibold text-zinc-300 border border-[#27272a] hover:border-zinc-500 transition-colors"
+      >
+        Log in
+      </button>
+    );
+  }
+
   return (
-    <button
-      aria-label="User menu"
-      className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-    >
-      M
-    </button>
+    <div className="flex items-center gap-1">
+      <button
+        aria-label="User menu"
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+        title={`Logged in as ${userId}`}
+      >
+        {initials}
+      </button>
+      <button
+        aria-label="Log out"
+        onClick={logout}
+        title="Log out"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.06] transition-colors"
+      >
+        <LogOut className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 

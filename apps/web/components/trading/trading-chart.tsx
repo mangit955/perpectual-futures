@@ -5,14 +5,14 @@ import dynamic from "next/dynamic";
 const AdvancedRealTimeChart = dynamic(
   () =>
     import("react-ts-tradingview-widgets").then(
-      (mod) => mod.AdvancedRealTimeChart
+      (mod) => mod.AdvancedRealTimeChart,
     ),
-  { ssr: false }
+  { ssr: false },
 );
 
 export function TradingChart() {
   return (
-    <div className="h-full w-full rounded-xl p-2">
+    <div className="h-full w-full overflow-hidden rounded-xl border border-[#1e1e22] bg-[#0f0f11]">
       <AdvancedRealTimeChart
         theme="dark"
         symbol="BINANCE:SOLUSDT"
