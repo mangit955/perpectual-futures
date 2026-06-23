@@ -37,7 +37,7 @@ import WorldMap from "../ui/world-map";
 import Link from "next/link";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
-const docsHref = `${githubHref}/tree/main/docs`;
+const docsHref = "/docs";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -228,8 +228,8 @@ function HeroSection() {
             <Link
               href="/trade"
               className={cn(
-                buttonVariants({ variant: "primary", size: "lg" }),
-                "group text-zinc-900",
+                buttonVariants({ variant: "default", size: "lg" }),
+                "group text-zinc-900 bg-white",
               )}
             >
               <span className="relative z-10 text-zinc-950">
@@ -281,7 +281,7 @@ function HeroSection() {
           </motion.div>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
-            href={docsHref}
+            href="/docs"
           >
             View Documentation
             <BookOpen className="h-4 w-4" aria-hidden="true" />
@@ -780,8 +780,8 @@ function CtaSection() {
         <div className="mt-8 pb-6 flex flex-col justify-center gap-3 sm:flex-row">
           <a
             className={cn(
-              buttonVariants({ variant: "primary", size: "lg" }),
-              "text-gray-950!",
+              buttonVariants({ variant: "default", size: "lg" }),
+              "text-gray-950! bg-white",
             )}
             href="/trade"
           >
@@ -790,7 +790,7 @@ function CtaSection() {
           </a>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
-            href={docsHref}
+            href="/docs"
           >
             Read Docs
             <BookOpen className="h-4 w-4" aria-hidden="true" />

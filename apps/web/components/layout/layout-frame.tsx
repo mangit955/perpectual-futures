@@ -5,8 +5,19 @@ import { type ReactNode } from "react";
 export function LayoutFrame({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
-      <div className="pointer-events-none fixed bottom-0 left-[64px] top-0 z-30 w-px bg-neutral-800 xl:left-[72px]" />
-      <div className="pointer-events-none fixed bottom-0 right-[64px] top-0 z-30 w-px bg-neutral-800 xl:right-[72px]" />
+      {/* Hatched Backgrounds */}
+      <div className="pointer-events-none fixed bottom-0 left-[8px] top-0 z-20 w-[56px] bg-hatched xl:left-[8px] xl:w-[64px]" />
+      <div className="pointer-events-none fixed bottom-0 right-[8px] top-0 z-20 w-[56px] bg-hatched xl:right-[8px] xl:w-[64px]" />
+
+      {/* Border Lines */}
+      {/* Outer Lines */}
+      <div className="pointer-events-none fixed bottom-0 left-[8px] top-0 z-30 w-px bg-neutral-900 xl:left-[8px]" />
+      <div className="pointer-events-none fixed bottom-0 right-[8px] top-0 z-30 w-px bg-neutral-900 xl:right-[8px]" />
+
+      {/* Inner Lines */}
+      <div className="pointer-events-none fixed bottom-0 left-[64px] top-0 z-30 w-px bg-neutral-900 xl:left-[72px]" />
+      <div className="pointer-events-none fixed bottom-0 right-[64px] top-0 z-30 w-px bg-neutral-900 xl:right-[72px]" />
+
       {children}
     </div>
   );

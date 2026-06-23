@@ -1,0 +1,10 @@
+{
+  "pages": [
+    "index",
+    "architecture",
+    "api",
+    "websockets",
+    "recovery",
+    "testing"
+  ]
+}

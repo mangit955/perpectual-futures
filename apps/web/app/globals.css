@@ -116,6 +116,16 @@ select {
   scrollbar-width: none;
 }
 
+.bg-hatched {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 8px,
+    rgba(255, 255, 255, 0.04) 8px,
+    rgba(255, 255, 255, 0.04) 9px
+  );
+}
+
 /* Ticker tape marquee */
 @keyframes ticker-scroll {
   0% {

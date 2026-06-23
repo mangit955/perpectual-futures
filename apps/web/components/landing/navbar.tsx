@@ -11,9 +11,10 @@ import { FaGithub } from "react-icons/fa";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import ClickSpark from "../ClickSpark";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
-const docsHref = `${githubHref}/tree/main/docs`;
+const docsHref = "/docs";
 
 const navItems = [
   { label: "Features", href: "#features", id: "features" },
@@ -198,16 +199,23 @@ export function Navbar() {
             </motion.span>
           </motion.a>
           <div className="hidden items-center gap-3 lg:flex">
-            <a
-              href="/signup"
-              className={cn(
-                buttonVariants({ size: "sm" }),
-                "border cursor-pointer bg-white text-black! font-medium",
-                "hover:bg-neutral-400 ",
-              )}
+            <ClickSpark
+              sparkColor="#3B82F6"
+              sparkSize={10}
+              sparkRadius={15}
+              sparkCount={8}
+              duration={400}
             >
-              Sign Up !
-            </a>
+              <a
+                href="/login"
+                className={cn(
+                  buttonVariants({ size: "sm" }),
+                  "border cursor-pointer bg-white text-black! font-medium",
+                )}
+              >
+                Sign Up !
+              </a>
+            </ClickSpark>
           </div>
         </div>
 
@@ -262,10 +270,10 @@ export function Navbar() {
               </a>
               <a
                 className={cn(
-                  buttonVariants({ variant: "secondary", size: "md" }),
+                  buttonVariants({ variant: "secondary", size: "default" }),
                   "mt-2 w-full",
                 )}
-                href={docsHref}
+                href="/docs"
                 onClick={() => setMobileOpen(false)}
               >
                 View Docs
