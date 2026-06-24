@@ -1,0 +1,12 @@
+{
+  "market": "BTC-PERP",
+  "engineSequence": 0,
+  "lastRedisStreamId": "0-0",
+  "createdAt": 1782319437011,
+  "orderBook": {
+    "market": "BTC-PERP",
+    "sequence": 0,
+    "bids": [],
+    "asks": []
+  }
+}

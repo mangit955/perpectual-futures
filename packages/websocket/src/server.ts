@@ -18,58 +18,65 @@ export function createWebSocketServer(options: CreateWebSocketServerOptions) {
   const server = Bun.serve<SocketData>({
     port: options.port,
     fetch(request, server) {
-      const url = new URL(request.url);
-
-      if (url.pathname !== "/ws") {
-        return new Response("Not found", { status: 404 });
+      if (handleUpgrade(request, server)) {
+        return undefined;
       }
-
-      const connectionId = crypto.randomUUID();
-      const upgraded = server.upgrade(request, {
-        data: { connectionId },
-      });
-
-      if (!upgraded) {
-        return new Response("Expected websocket upgrade", { status: 400 });
-      }
-
-      return undefined;
+      return new Response("Not found", { status: 404 });
     },
-    websocket: {
-      open(socket) {
-        hub.connect({
-          id: socket.data.connectionId,
-          send(message) {
-            socket.send(message);
-          },
-        });
-      },
-      message(socket, rawMessage) {
-        const message = parseClientMessage(rawMessage);
-
-        if (!message) {
-          socket.send(
-            JSON.stringify({
-              type: "error",
-              reason: "invalid websocket message",
-            }),
-          );
-          return;
-        }
-
-        if (message.op === "subscribe") {
-          hub.subscribe(socket.data.connectionId, message);
-        } else {
-          hub.unsubscribe(socket.data.connectionId, message);
-        }
-      },
-      close(socket) {
-        hub.disconnect(socket.data.connectionId);
-      },
-    },
+    websocket: getWebSocketHandlers(hub),
   });
 
   return { server, hub };
+}
+
+export function handleUpgrade(request: Request, server: any): boolean {
+  const url = new URL(request.url);
+
+  if (url.pathname !== "/ws") {
+    return false;
+  }
+
+  const connectionId = crypto.randomUUID();
+  const upgraded = server.upgrade(request, {
+    data: { connectionId },
+  });
+
+  return upgraded;
+}
+
+export function getWebSocketHandlers(hub: WebSocketHub) {
+  return {
+    open(socket: any) {
+      hub.connect({
+        id: socket.data.connectionId,
+        send(message) {
+          socket.send(message);
+        },
+      });
+    },
+    message(socket: any, rawMessage: string | Buffer) {
+      const message = parseClientMessage(rawMessage);
+
+      if (!message) {
+        socket.send(
+          JSON.stringify({
+            type: "error",
+            reason: "invalid websocket message",
+          }),
+        );
+        return;
+      }
+
+      if (message.op === "subscribe") {
+        hub.subscribe(socket.data.connectionId, message);
+      } else {
+        hub.unsubscribe(socket.data.connectionId, message);
+      }
+    },
+    close(socket: any) {
+      hub.disconnect(socket.data.connectionId);
+    },
+  };
 }
 
 function parseClientMessage(rawMessage: string | Buffer): ClientMessage | null {

@@ -2,17 +2,26 @@ import { ExchangeRuntime, type SubmitOrderInput } from "../../../packages/runtim
 import {
   InMemoryApiRuntime,
   type ApiRuntime,
+  type PriceCache,
 } from "../../../packages/runtime/src/index";
+import { WebSocketHub } from "../../../packages/websocket/src/index";
 
 export interface ApiAppOptions {
   runtime?: ExchangeRuntime;
   apiRuntime?: ApiRuntime;
+  priceCache?: PriceCache;
+  hub?: WebSocketHub;
 }
 
 export function createApiApp(options: ApiAppOptions = {}) {
+  const hub = options.hub ?? new WebSocketHub();
+  
+  // Create runtime with WebSocket integration
+  const exchangeRuntime = new ExchangeRuntime({ hub });
   const runtime =
     options.apiRuntime ??
-    new InMemoryApiRuntime(options.runtime ?? new ExchangeRuntime());
+    new InMemoryApiRuntime(options.runtime ?? exchangeRuntime);
+  const priceCache = options.priceCache ?? null;
 
   const CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -23,6 +32,15 @@ export function createApiApp(options: ApiAppOptions = {}) {
   async function fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const method = request.method.toUpperCase();
+
+    // Handle WebSocket upgrade
+    if (url.pathname === "/ws") {
+      if (options.hub) {
+        const { handleUpgrade } = await import("../../../packages/websocket/src/index");
+        return handleUpgrade(request, { hub });
+      }
+      return new Response("WebSocket not configured", { status: 503 });
+    }
 
     // Handle CORS preflight
     if (method === "OPTIONS") {
@@ -55,10 +73,43 @@ export function createApiApp(options: ApiAppOptions = {}) {
         return market ? json(market) : jsonError("MARKET_NOT_FOUND", 404);
       }
 
+      const orderbookMatch = url.pathname.match(/^\/markets\/([^/]+)\/orderbook$/);
+      if (method === "GET" && orderbookMatch) {
+        const marketId = orderbookMatch[1] ?? "";
+        const depth = url.searchParams.get("depth");
+        const orderbook = await runtime.getOrderBook(
+          marketId,
+          depth ? Number(depth) : undefined
+        );
+        return json(orderbook);
+      }
+
+      if (method === "GET" && url.pathname === "/prices") {
+        if (!priceCache) {
+          return json([]);
+        }
+        return json(await priceCache.getAll());
+      }
+
+      const priceMatch = url.pathname.match(/^\/prices\/([^/]+)$/);
+      if (method === "GET" && priceMatch) {
+        if (!priceCache) {
+          return jsonError("PRICE_CACHE_UNAVAILABLE", 503);
+        }
+        const data = await priceCache.get(priceMatch[1] ?? "");
+        return data ? json(data) : jsonError("PRICE_NOT_FOUND", 404);
+      }
+
       if (method === "POST" && url.pathname === "/deposits") {
         const user = await runtime.authenticate(authToken(request));
         const body = await readJson<{ asset: string; amount: number | string }>(request);
         return json(await runtime.deposit(user.id, body.asset, Number(body.amount)), 201);
+      }
+
+      if (method === "POST" && url.pathname === "/withdrawals") {
+        const user = await runtime.authenticate(authToken(request));
+        const body = await readJson<{ asset: string; amount: number | string }>(request);
+        return json(await runtime.withdraw(user.id, body.asset, Number(body.amount)), 201);
       }
 
       if (method === "POST" && url.pathname === "/orders") {
@@ -175,6 +226,8 @@ function normalizeOrderInput(
 ): Omit<SubmitOrderInput, "userId"> {
   return {
     ...body,
+    side: body.side?.toUpperCase() as "BUY" | "SELL",
+    type: body.type?.toUpperCase() as "MARKET" | "LIMIT",
     quantity: Number(body.quantity),
     price: body.price == null ? undefined : Number(body.price),
     leverage: body.leverage == null ? undefined : Number(body.leverage),

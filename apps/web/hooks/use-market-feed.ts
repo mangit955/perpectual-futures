@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CandleData, MarketData, OrderBookData, RecentTrade } from "@/types/trading";
 import { getMarketFeed, MockMarketFeed } from "@/lib/mock/websocket";
+import { apiGetOrderBook, convertOrderBookToFrontend } from "@/lib/api";
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+
+const USE_REAL_API = process.env.NEXT_PUBLIC_USE_REAL_API === "true";
+const DEFAULT_MARKET_ID = "BTC-PERP"; // Use the seeded market
 
 // ─── Shared feed hook ────────────────────────────────────────────────────────
 
@@ -32,11 +38,33 @@ export function useOrderBook(): OrderBookData | null {
   const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
 
   useEffect(() => {
-    setOrderBook(feed.getInitialOrderBook());
-    const unsub = feed.subscribe("orderbook", (data) => {
-      setOrderBook(data);
-    });
-    return unsub;
+    if (USE_REAL_API) {
+      // Fetch real orderbook data from API
+      const fetchOrderBook = async () => {
+        try {
+          const backendBook = await apiGetOrderBook(DEFAULT_MARKET_ID, 15);
+          const frontendBook = convertOrderBookToFrontend(backendBook);
+          setOrderBook(frontendBook);
+        } catch (error) {
+          console.error("Failed to fetch orderbook:", error);
+          // Fallback to mock data
+          setOrderBook(feed.getInitialOrderBook());
+        }
+      };
+
+      fetchOrderBook();
+      
+      // Set up polling for updates
+      const interval = setInterval(fetchOrderBook, 1000);
+      return () => clearInterval(interval);
+    } else {
+      // Use mock data
+      setOrderBook(feed.getInitialOrderBook());
+      const unsub = feed.subscribe("orderbook", (data) => {
+        setOrderBook(data);
+      });
+      return unsub;
+    }
   }, [feed]);
 
   return orderBook;

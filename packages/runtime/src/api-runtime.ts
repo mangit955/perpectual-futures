@@ -14,6 +14,7 @@ export interface ApiRuntime {
   listMarkets(): Promise<RuntimeMarket[]>;
   getMarket(marketId: string): Promise<RuntimeMarket | null>;
   deposit(userId: string, asset: string, amount: number): Promise<RuntimeBalance>;
+  withdraw(userId: string, asset: string, amount: number): Promise<RuntimeBalance>;
   submitOrder(input: SubmitOrderInput): Promise<RuntimeOrder>;
   cancelOrder(userId: string, marketId: string, orderId: string): Promise<void>;
   listBalances(userId: string): Promise<RuntimeBalance[]>;
@@ -21,6 +22,7 @@ export interface ApiRuntime {
   listOrders(userId: string): Promise<RuntimeOrder[]>;
   getOrder(userId: string, orderId: string): Promise<RuntimeOrder | null>;
   listFills(userId: string): Promise<RuntimeFill[]>;
+  getOrderBook(marketId: string, depth?: number): Promise<unknown>;
   drain(maxIterations?: number): Promise<number>;
 }
 
@@ -55,6 +57,14 @@ export class InMemoryApiRuntime implements ApiRuntime {
     amount: number,
   ): Promise<RuntimeBalance> {
     return this.runtime.deposit(userId, asset, amount);
+  }
+
+  async withdraw(
+    userId: string,
+    asset: string,
+    amount: number,
+  ): Promise<RuntimeBalance> {
+    return this.runtime.withdraw(userId, asset, amount);
   }
 
   async submitOrder(input: SubmitOrderInput): Promise<RuntimeOrder> {
@@ -100,5 +110,9 @@ export class InMemoryApiRuntime implements ApiRuntime {
 
   async drain(maxIterations?: number): Promise<number> {
     return this.runtime.drain(maxIterations);
+  }
+
+  async getOrderBook(marketId: string, depth?: number) {
+    return this.runtime.getOrderBookSnapshot(marketId, depth);
   }
 }

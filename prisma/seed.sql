@@ -74,30 +74,4 @@ ON CONFLICT ("asset") DO UPDATE SET
   "balance" = EXCLUDED."balance",
   "updatedAt" = CURRENT_TIMESTAMP;
 
-INSERT INTO "users" ("id", "email", "passwordHash", "status", "createdAt", "updatedAt")
-VALUES (
-  'demo-user',
-  'demo@example.com',
-  'seed-only-password-hash',
-  'ACTIVE',
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-)
-ON CONFLICT ("email") DO UPDATE SET
-  "status" = EXCLUDED."status",
-  "updatedAt" = CURRENT_TIMESTAMP;
 
-INSERT INTO "balances" ("id", "userId", "asset", "total", "locked", "createdAt", "updatedAt")
-VALUES (
-  'demo-user-usdc-balance',
-  'demo-user',
-  'USDC',
-  100000.000000000000000000,
-  0,
-  CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP
-)
-ON CONFLICT ("userId", "asset") DO UPDATE SET
-  "total" = EXCLUDED."total",
-  "locked" = EXCLUDED."locked",
-  "updatedAt" = CURRENT_TIMESTAMP;

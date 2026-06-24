@@ -1,5 +1,5 @@
 export { WebSocketHub } from "./hub";
-export { createWebSocketServer } from "./server";
+export { createWebSocketServer, handleUpgrade, getWebSocketHandlers } from "./server";
 export { isPrivateChannel, topicFor } from "./topics";
 export type {
   Authenticator,

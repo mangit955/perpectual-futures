@@ -1,5 +1,6 @@
 import {
   RedisStreamBus,
+  RedisPriceCache,
 } from "../../../packages/runtime/src/index";
 import {
   BinanceMarketDataService,
@@ -16,12 +17,13 @@ if (mappings.length === 0) {
   throw new Error("no market-data symbols configured");
 }
 
+const redisUrl = requiredEnv("REDIS_URL");
+
 const service = new BinanceMarketDataService({
   url: requiredEnv("BINANCE_WS_URL"),
   mappings,
-  bus: new RedisStreamBus({
-    redisUrl: requiredEnv("REDIS_URL"),
-  }),
+  bus: new RedisStreamBus({ redisUrl }),
+  priceCache: new RedisPriceCache({ redisUrl }),
 });
 
 console.log(

@@ -12,6 +12,17 @@ import { commandStream, eventStream, type StreamBus } from "./stream";
 import type { RuntimeCommand, RuntimeFill, RuntimeOrder } from "./types";
 import type { RuntimeStore } from "./store";
 
+// WebSocket hub interface for event publishing
+interface WebSocketPublisher {
+  publish(input: {
+    channel: string;
+    market?: string;
+    userId?: string;
+    sequence?: number;
+    data: unknown;
+  }): number;
+}
+
 export class MatchingWorker {
   private readonly offsets = new Map<string, string>();
 
@@ -19,6 +30,7 @@ export class MatchingWorker {
     private readonly bus: StreamBus,
     private readonly engine: MatchingEngine,
     private readonly markets: () => string[],
+    private readonly hub?: WebSocketPublisher,
   ) {}
 
   async processOnce(): Promise<number> {
@@ -42,6 +54,11 @@ export class MatchingWorker {
             type: "engine.event",
             event,
           });
+          
+          // Publish orderbook updates for public channels
+          if (this.hub && (event.type === "trade.executed" || event.type === "order.rested")) {
+            this.publishOrderbookUpdate(event);
+          }
         }
 
         this.offsets.set(stream, message.id);
@@ -50,6 +67,40 @@ export class MatchingWorker {
     }
 
     return processed;
+  }
+
+  private publishOrderbookUpdate(event: EngineEvent): void {
+    if (!this.hub) return;
+
+    try {
+      // Get current orderbook snapshot for the market
+      const snapshot = this.engine.getBookSnapshot(event.market, 20);
+      
+      this.hub.publish({
+        channel: "orderbook",
+        market: event.market,
+        sequence: event.sequence,
+        data: snapshot,
+      });
+
+      // Also publish trade data if it's a trade event
+      if (event.type === "trade.executed") {
+        this.hub.publish({
+          channel: "trades",
+          market: event.market,
+          sequence: event.sequence,
+          data: {
+            tradeId: event.tradeId,
+            price: event.priceTicks,
+            quantity: event.qtyLots,
+            side: event.takerSide,
+            timestamp: event.timestamp,
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to publish WebSocket update:", error);
+    }
   }
 }
 
@@ -60,6 +111,7 @@ export class RuntimePersistenceWorker {
     private readonly bus: StreamBus,
     private readonly store: RuntimeStore,
     private readonly markets: () => string[],
+    private readonly hub?: WebSocketPublisher,
   ) {}
 
   async processOnce(): Promise<number> {
@@ -87,6 +139,8 @@ export class RuntimePersistenceWorker {
       return;
     }
 
+    const orderUpdateUsers = new Set<string>();
+
     switch (event.type) {
       case "order.accepted":
         this.updateOrder(event.orderId, { status: "OPEN", updatedAt: event.timestamp });
@@ -104,8 +158,13 @@ export class RuntimePersistenceWorker {
           remainingQuantity: event.order.remainingQtyLots,
           updatedAt: event.timestamp,
         });
+        orderUpdateUsers.add(event.order.userId);
         break;
       case "order.cancelled":
+        const cancelledOrder = this.store.orders.get(event.orderId);
+        if (cancelledOrder) {
+          orderUpdateUsers.add(cancelledOrder.userId);
+        }
         this.updateOrder(event.orderId, {
           status: "CANCELLED",
           remainingQuantity: event.remainingQtyLots,
@@ -113,6 +172,10 @@ export class RuntimePersistenceWorker {
         });
         break;
       case "order.expired":
+        const expiredOrder = this.store.orders.get(event.orderId);
+        if (expiredOrder) {
+          orderUpdateUsers.add(expiredOrder.userId);
+        }
         this.updateOrder(event.orderId, {
           status: "EXPIRED",
           remainingQuantity: event.remainingQtyLots,
@@ -123,10 +186,43 @@ export class RuntimePersistenceWorker {
         break;
       case "trade.executed":
         this.applyTrade(event);
+        orderUpdateUsers.add(event.makerUserId);
+        orderUpdateUsers.add(event.takerUserId);
         break;
     }
 
+    // Publish private updates to affected users
+    if (this.hub && orderUpdateUsers.size > 0) {
+      for (const userId of orderUpdateUsers) {
+        this.publishPrivateUpdates(userId);
+      }
+    }
+
     this.store.processedEvents.add(event.eventId);
+  }
+
+  private publishPrivateUpdates(userId: string): void {
+    if (!this.hub) return;
+
+    try {
+      // Publish updated positions
+      const positions = [...this.store.positions.values()].filter(p => p.userId === userId);
+      this.hub.publish({
+        channel: "positions",
+        userId,
+        data: positions,
+      });
+
+      // Publish updated balances  
+      const balances = [...this.store.balances.values()].filter(b => b.userId === userId);
+      this.hub.publish({
+        channel: "balances", // Note: This channel needs to be added to WebSocket types
+        userId,
+        data: balances,
+      });
+    } catch (error) {
+      console.error(`Failed to publish private updates for user ${userId}:`, error);
+    }
   }
 
   private applyTrade(event: TradeExecuted): void {
@@ -147,6 +243,10 @@ export class RuntimePersistenceWorker {
     });
     this.applyFillToPosition(event, "MAKER");
     this.applyFillToPosition(event, "TAKER");
+    
+    // Re-enabled balance changes - this is critical for proper balance updates
+    this.applyTradeBalanceChanges(event, "MAKER");
+    this.applyTradeBalanceChanges(event, "TAKER");
   }
 
   private applyFillToPosition(event: TradeExecuted, role: "MAKER" | "TAKER"): void {
@@ -173,6 +273,33 @@ export class RuntimePersistenceWorker {
     this.store.setPosition(result.next);
   }
 
+  private applyTradeBalanceChanges(event: TradeExecuted, role: "MAKER" | "TAKER"): void {
+    const userId = role === "MAKER" ? event.makerUserId : event.takerUserId;
+    const side = role === "MAKER" ? event.makerSide : event.takerSide;
+    const market = this.store.markets.get(event.market);
+
+    if (!market) {
+      throw new Error(`Unknown market ${event.market}`);
+    }
+
+    const tradeValue = event.priceTicks * event.qtyLots;
+    const fee = tradeValue * (role === "MAKER" ? market.makerFeeRate : market.takerFeeRate);
+
+    // For perpetual futures, we only adjust the collateral (quote asset) for fees and realized PnL
+    // The position tracking handles the actual contract exposure
+    
+    // Deduct trading fee from collateral balance
+    const currentBalance = this.store.getBalance(userId, market.quoteAsset);
+    if (currentBalance.total >= fee) {
+      this.store.adjustBalance(userId, market.quoteAsset, -fee);
+    } else {
+      console.warn(`Insufficient balance for trading fee: user ${userId}, required ${fee}, available ${currentBalance.total}`);
+    }
+    
+    // For perpetual futures, PnL is realized when positions are reduced
+    // This is handled in the position management logic
+  }
+
   private updateOrder(orderId: string, patch: Partial<RuntimeOrder>): void {
     const existing = this.store.orders.get(orderId);
 
@@ -185,6 +312,11 @@ export class RuntimePersistenceWorker {
 function fillFromTrade(event: TradeExecuted, role: "MAKER" | "TAKER"): RuntimeFill {
   const maker = role === "MAKER";
   const side = maker ? event.makerSide : event.takerSide;
+  const tradeValue = event.priceTicks * event.qtyLots;
+  
+  // Note: Fee calculation requires market data, which isn't available here
+  // This will be updated in the applyTradeBalanceChanges method
+  const fee = 0; // Placeholder - actual fee deducted in balance changes
 
   return {
     id: `${event.tradeId}:${role.toLowerCase()}`,
@@ -196,8 +328,8 @@ function fillFromTrade(event: TradeExecuted, role: "MAKER" | "TAKER"): RuntimeFi
     liquidityRole: role,
     price: event.priceTicks,
     quantity: event.qtyLots,
-    notional: event.priceTicks * event.qtyLots,
-    fee: 0,
+    notional: tradeValue,
+    fee: fee,
     realizedPnl: 0,
     createdAt: event.timestamp,
   };

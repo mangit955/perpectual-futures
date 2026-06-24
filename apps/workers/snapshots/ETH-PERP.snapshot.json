@@ -1,0 +1,12 @@
+{
+  "market": "ETH-PERP",
+  "engineSequence": 0,
+  "lastRedisStreamId": "0-0",
+  "createdAt": 1782319438828,
+  "orderBook": {
+    "market": "ETH-PERP",
+    "sequence": 0,
+    "bids": [],
+    "asks": []
+  }
+}

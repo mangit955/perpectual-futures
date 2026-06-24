@@ -153,6 +153,72 @@ export async function apiListMarkets(): Promise<ApiMarket[]> {
   return request("/markets");
 }
 
+// ─── OrderBook ───────────────────────────────────────────────────────────────
+
+export async function apiGetOrderBook(
+  marketId: string,
+  depth?: number,
+): Promise<{
+  market: string;
+  sequence: number;
+  bids: Array<{ priceTicks: number; totalQtyLots: number }>;
+  asks: Array<{ priceTicks: number; totalQtyLots: number }>;
+}> {
+  const params = depth ? `?depth=${depth}` : "";
+  return request(`/markets/${marketId}/orderbook${params}`);
+}
+
+// ─── Utility Functions ──────────────────────────────────────────────────────
+
+/** Convert backend orderbook to frontend OrderBookData format */
+export function convertOrderBookToFrontend(
+  backendBook: {
+    bids: Array<{ priceTicks: number; totalQtyLots: number }>;
+    asks: Array<{ priceTicks: number; totalQtyLots: number }>;
+  }
+): {
+  asks: { price: number; size: number; total: number }[];
+  bids: { price: number; size: number; total: number }[];
+  spread: number;
+  spreadPercentage: number;
+  midPrice: number;
+} {
+  // Convert and add running totals
+  let bidTotal = 0;
+  const bids = backendBook.bids.map(entry => {
+    bidTotal += entry.totalQtyLots;
+    return {
+      price: entry.priceTicks,
+      size: entry.totalQtyLots,
+      total: bidTotal,
+    };
+  });
+
+  let askTotal = 0;
+  const asks = backendBook.asks.map(entry => {
+    askTotal += entry.totalQtyLots;
+    return {
+      price: entry.priceTicks,
+      size: entry.totalQtyLots,
+      total: askTotal,
+    };
+  });
+
+  const bestBid = bids[0]?.price ?? 0;
+  const bestAsk = asks[0]?.price ?? 0;
+  const spread = bestAsk - bestBid;
+  const midPrice = (bestBid + bestAsk) / 2;
+  const spreadPercentage = midPrice > 0 ? (spread / midPrice) * 100 : 0;
+
+  return {
+    asks,
+    bids,
+    spread,
+    spreadPercentage,
+    midPrice,
+  };
+}
+
 // ─── Balances ────────────────────────────────────────────────────────────────
 
 export async function apiGetBalances(token: string): Promise<ApiBalance[]> {
@@ -204,6 +270,18 @@ export async function apiDeposit(
 ): Promise<ApiBalance> {
   return request(
     "/deposits",
+    { method: "POST", body: JSON.stringify({ asset, amount }) },
+    token,
+  );
+}
+
+export async function apiWithdraw(
+  token: string,
+  asset: string,
+  amount: number,
+): Promise<ApiBalance> {
+  return request(
+    "/withdrawals",
     { method: "POST", body: JSON.stringify({ asset, amount }) },
     token,
   );

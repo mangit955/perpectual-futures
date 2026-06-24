@@ -18,6 +18,17 @@ export interface SubmitOrderInput {
   leverage?: number;
 }
 
+// WebSocket publisher interface
+interface WebSocketPublisher {
+  publish(input: {
+    channel: string;
+    market?: string;
+    userId?: string;
+    sequence?: number;
+    data: unknown;
+  }): number;
+}
+
 export class ExchangeRuntime {
   readonly store: RuntimeStore;
   readonly bus: StreamBus;
@@ -30,15 +41,22 @@ export class ExchangeRuntime {
     bus?: StreamBus;
     engine?: MatchingEngine;
     clock?: () => number;
+    hub?: WebSocketPublisher;
   } = {}) {
     this.store = input.store ?? new RuntimeStore();
     this.bus = input.bus ?? new InMemoryStreamBus();
     this.engine = input.engine ?? new MatchingEngine({ clock: input.clock });
-    this.matchingWorker = new MatchingWorker(this.bus, this.engine, () =>
-      [...this.store.markets.keys()],
+    this.matchingWorker = new MatchingWorker(
+      this.bus, 
+      this.engine, 
+      () => [...this.store.markets.keys()],
+      input.hub
     );
-    this.persistenceWorker = new RuntimePersistenceWorker(this.bus, this.store, () =>
-      [...this.store.markets.keys()],
+    this.persistenceWorker = new RuntimePersistenceWorker(
+      this.bus, 
+      this.store, 
+      () => [...this.store.markets.keys()],
+      input.hub
     );
   }
 
@@ -56,6 +74,19 @@ export class ExchangeRuntime {
     }
 
     return this.store.adjustBalance(userId, asset, amount);
+  }
+
+  withdraw(userId: string, asset: string, amount: number) {
+    if (amount <= 0) {
+      throw new Error("withdraw amount must be positive");
+    }
+
+    const balance = this.store.getBalance(userId, asset);
+    if (balance.total - balance.locked < amount) {
+      throw new Error("insufficient available balance");
+    }
+
+    return this.store.adjustBalance(userId, asset, -amount);
   }
 
   async submitOrder(input: SubmitOrderInput, now = Date.now()): Promise<RuntimeOrder> {
@@ -161,5 +192,9 @@ export class ExchangeRuntime {
     }
 
     return processed;
+  }
+
+  getOrderBookSnapshot(marketId: string, depth?: number) {
+    return this.engine.getBookSnapshot(marketId, depth);
   }
 }

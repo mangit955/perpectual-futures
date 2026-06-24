@@ -1,5 +1,5 @@
 export type PublicChannel = "trades" | "orderbook" | "mark_price" | "funding";
-export type PrivateChannel = "positions";
+export type PrivateChannel = "positions" | "balances" | "orders";
 export type Channel = PublicChannel | PrivateChannel;
 
 export interface SubscribeMessage {

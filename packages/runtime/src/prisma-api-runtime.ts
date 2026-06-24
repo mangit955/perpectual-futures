@@ -188,6 +188,49 @@ export class PrismaApiRuntime implements ApiRuntime {
     });
   }
 
+  async withdraw(
+    userId: string,
+    asset: string,
+    amount: number,
+  ): Promise<RuntimeBalance> {
+    if (amount <= 0) {
+      throw new Error("withdraw amount must be positive");
+    }
+
+    return this.options.client.$transaction(async (tx) => {
+      const existing = await tx.balance.findUnique({
+        where: { userId_asset: { userId, asset } },
+      });
+      
+      const total = decimal(existing, "total");
+      const locked = decimal(existing, "locked");
+      
+      if (total - locked < amount) {
+        throw new Error("insufficient available balance");
+      }
+      
+      const nextTotal = total - amount;
+      const balance = await tx.balance.update({
+        where: { userId_asset: { userId, asset } },
+        data: {
+          total: String(nextTotal),
+        },
+      });
+
+      await tx.ledgerEntry.create({
+        data: {
+          userId,
+          asset,
+          type: "WITHDRAW",
+          amount: String(amount),
+          balanceAfter: String(nextTotal),
+        },
+      });
+
+      return mapBalance(balance);
+    });
+  }
+
   async submitOrder(input: SubmitOrderInput): Promise<RuntimeOrder> {
     const market = await this.getMarket(input.marketId);
 
@@ -368,6 +411,17 @@ export class PrismaApiRuntime implements ApiRuntime {
 
   async drain(): Promise<number> {
     return 0;
+  }
+
+  async getOrderBook(marketId: string, depth?: number) {
+    // For production, we'd need to implement this properly with the matching engine
+    // For now, return empty orderbook
+    return {
+      market: marketId,
+      sequence: 0,
+      bids: [],
+      asks: [],
+    };
   }
 
   private async getBalance(

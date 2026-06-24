@@ -17,14 +17,16 @@ export function topicFor(input: {
       return `${input.channel}:${input.market}`;
 
     case "positions":
+    case "balances":
+    case "orders":
       if (!input.userId) {
-        throw new Error("positions subscriptions require an authenticated user");
+        throw new Error(`${input.channel} subscriptions require an authenticated user`);
       }
 
-      return `positions:${input.userId}`;
+      return `${input.channel}:${input.userId}`;
   }
 }
 
 export function isPrivateChannel(channel: Channel): boolean {
-  return channel === "positions";
+  return channel === "positions" || channel === "balances" || channel === "orders";
 }

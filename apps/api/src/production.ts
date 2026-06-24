@@ -1,10 +1,11 @@
-import { PrismaApiRuntime } from "../../../packages/runtime/src/index";
+import { PrismaApiRuntime, RedisPriceCache } from "../../../packages/runtime/src/index";
 import type { PrismaApiClient } from "../../../packages/runtime/src/index";
 import { createApiApp } from "./app";
 
 export async function createProductionApiApp() {
   const databaseUrl = requiredEnv("DATABASE_URL");
   const jwtSecret = requiredEnv("JWT_SECRET");
+  const redisUrl = requiredEnv("REDIS_URL");
   const PrismaClient = await loadPrismaClient();
   const client = new PrismaClient({
     datasources: { db: { url: databaseUrl } },
@@ -15,6 +16,7 @@ export async function createProductionApiApp() {
       client,
       jwtSecret,
     }),
+    priceCache: new RedisPriceCache({ redisUrl }),
   });
 }
 

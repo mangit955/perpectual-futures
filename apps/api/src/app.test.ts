@@ -68,6 +68,78 @@ describe("api app", () => {
     expect(makerFills).toHaveLength(1);
     expect(takerPositions[0]?.quantity).toBe(1);
   });
+
+  it("exposes orderbook data", async () => {
+    const app = createApiApp();
+
+    // Test empty orderbook initially
+    const emptyOrderbook = await json<{
+      market: string;
+      sequence: number;
+      bids: unknown[];
+      asks: unknown[];
+    }>(
+      await app.fetch(get("/markets/BTC-PERP/orderbook")),
+    );
+
+    expect(emptyOrderbook.market).toBe("BTC-PERP");
+    expect(emptyOrderbook.bids).toEqual([]);
+    expect(emptyOrderbook.asks).toEqual([]);
+
+    // Add some orders to create orderbook data
+    const user = await json<{ userId: string }>(
+      await app.fetch(post("/auth/register", {
+        email: "user@example.com",
+        password: "pw",
+      })),
+    );
+    const login = await json<{ token: string }>(
+      await app.fetch(post("/auth/login", {
+        email: "user@example.com",
+        password: "pw",
+      })),
+    );
+
+    await app.fetch(authPost("/deposits", login.token, {
+      asset: "USDC",
+      amount: 10_000,
+    }));
+
+    // Add a bid and ask
+    await app.fetch(authPost("/orders", login.token, {
+      marketId: "BTC-PERP",
+      side: "BUY",
+      type: "LIMIT",
+      quantity: 1,
+      price: 99,
+      timeInForce: "GTC",
+    }));
+    await app.fetch(authPost("/orders", login.token, {
+      marketId: "BTC-PERP",
+      side: "SELL",
+      type: "LIMIT",
+      quantity: 1,
+      price: 101,
+      timeInForce: "GTC",
+    }));
+    
+    await app.runtime.drain();
+
+    const orderbook = await json<{
+      market: string;
+      sequence: number;
+      bids: Array<{ priceTicks: number; totalQtyLots: number }>;
+      asks: Array<{ priceTicks: number; totalQtyLots: number }>;
+    }>(
+      await app.fetch(get("/markets/BTC-PERP/orderbook")),
+    );
+
+    expect(orderbook.market).toBe("BTC-PERP");
+    expect(orderbook.bids).toHaveLength(1);
+    expect(orderbook.asks).toHaveLength(1);
+    expect(orderbook.bids[0]?.priceTicks).toBe(99);
+    expect(orderbook.asks[0]?.priceTicks).toBe(101);
+  });
 });
 
 function post(path: string, body: unknown): Request {
@@ -88,6 +160,10 @@ function authGet(path: string, token: string): Request {
   return new Request(`http://localhost${path}`, {
     headers: { authorization: `Bearer ${token}` },
   });
+}
+
+function get(path: string): Request {
+  return new Request(`http://localhost${path}`);
 }
 
 async function json<T>(response: Response): Promise<T> {

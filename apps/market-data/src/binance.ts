@@ -1,4 +1,4 @@
-import { PRICE_UPDATED_STREAM, type StreamBus } from "../../../packages/runtime/src/index";
+import { PRICE_UPDATED_STREAM, type StreamBus, type PriceCache } from "../../../packages/runtime/src/index";
 
 export interface MarketSymbolMapping {
   binanceSymbol: string;
@@ -65,6 +65,7 @@ export class BinanceMarketDataService {
       url: string;
       mappings: MarketSymbolMapping[];
       bus: StreamBus;
+      priceCache?: PriceCache;
       reconnectBaseMs?: number;
       reconnectMaxMs?: number;
     },
@@ -117,6 +118,17 @@ export class BinanceMarketDataService {
 
       if (event) {
         await this.options.bus.append(PRICE_UPDATED_STREAM, event);
+
+        if (this.options.priceCache) {
+          await this.options.priceCache.set(event.marketId, {
+            marketId: event.marketId,
+            markPrice: event.markPrice,
+            indexPrice: event.indexPrice,
+            fundingRate: event.fundingRate,
+            nextFundingTime: event.nextFundingTime,
+            timestamp: event.eventTime,
+          });
+        }
       }
     } catch (error) {
       console.error("Skipping malformed Binance market-data message", error);

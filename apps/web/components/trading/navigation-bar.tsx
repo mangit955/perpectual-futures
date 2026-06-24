@@ -11,6 +11,7 @@ import {
   ChevronDown,
   LogOut,
 } from "lucide-react";
+import { DepositButton, WithdrawButton } from "./deposit-withdraw";
 import {
   Dialog,
   DialogContent,
@@ -288,12 +289,8 @@ export function NavigationBar() {
         <SearchBar />
 
         {/* Deposit / Withdraw */}
-        <button className="h-8 rounded-md px-4 text-xs font-semibold! text-emerald-600 hover:text-green-700 bg-green-600/20 cursor-pointer transition-colors hover:bg-green-600/15">
-          Deposit
-        </button>
-        <button className="h-8 font-semibold! rounded-md text-blue-600 hover:text-blue-700 bg-blue-600/20 px-4 cursor-pointer text-xs transition-colors hover:bg-blue-600/15">
-          Withdraw
-        </button>
+        <DepositButton />
+        <WithdrawButton />
 
         {/* Separator */}
         <div className="mx-1 h-5 w-px bg-[#27272a]" />
