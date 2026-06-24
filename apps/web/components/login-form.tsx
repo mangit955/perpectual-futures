@@ -69,7 +69,10 @@ export function LoginForm({
             <h1 className="text-xl font-bold">Welcome to Flex</h1>
             <FieldDescription>
               Don&apos;t have an account?{" "}
-              <a href="/signup" className="hover:text-white!">
+              <a
+                href="/signup"
+                className="hover:text-white! hover:underline! underline!"
+              >
                 Sign up
               </a>
             </FieldDescription>

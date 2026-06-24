@@ -10,7 +10,6 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { GalleryVerticalEndIcon } from "lucide-react";
 import Link from "next/link";
 
 export function SignupForm({
@@ -70,7 +69,10 @@ export function SignupForm({
             <h1 className="text-xl font-bold">Welcome to Flex</h1>
             <FieldDescription>
               Already have an account?{" "}
-              <a href="/login" className="hover:text-white!">
+              <a
+                href="/login"
+                className="hover:text-white! hover:underline! underline!"
+              >
                 Sign in
               </a>
             </FieldDescription>

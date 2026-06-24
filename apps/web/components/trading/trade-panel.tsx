@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { OrderSide, OrderType, type TradeFormState } from "@/types/trading";
 import { useLastPrice, formatPrice } from "@/hooks/use-market-feed";
-import { ChevronDown, Info, DollarSign, List, Minus, Plus, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Info,
+  DollarSign,
+  List,
+  Minus,
+  Plus,
+  Loader2,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useUsdcBalance } from "@/hooks/use-api-data";
 import { apiSubmitOrder, ApiError } from "@/lib/api";
@@ -455,6 +464,7 @@ export function TradePanel() {
   const lastPrice = useLastPrice();
   const { token, isLoggedIn } = useAuth();
   const availableBalance = useUsdcBalance();
+  const router = useRouter();
 
   const [form, setForm] = useState<TradeFormState>({
     side: OrderSide.Buy,
@@ -528,11 +538,17 @@ export function TradePanel() {
       return;
     }
     if (quantity <= 0) {
-      setBanner({ status: "error", message: "Quantity must be greater than 0." });
+      setBanner({
+        status: "error",
+        message: "Quantity must be greater than 0.",
+      });
       return;
     }
     if (form.orderType === OrderType.Limit && price <= 0) {
-      setBanner({ status: "error", message: "Price must be greater than 0 for limit orders." });
+      setBanner({
+        status: "error",
+        message: "Price must be greater than 0 for limit orders.",
+      });
       return;
     }
 
@@ -658,7 +674,13 @@ export function TradePanel() {
         <button
           type="button"
           disabled={submitting}
-          onClick={handleSubmitOrder}
+          onClick={() => {
+            if (!isLoggedIn) {
+              router.push("/login");
+              return;
+            }
+            handleSubmitOrder();
+          }}
           className={`h-10 w-full cursor-pointer rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
             isBuy
               ? "bg-emerald-600 hover:bg-emerald-500"
@@ -671,9 +693,13 @@ export function TradePanel() {
               Placing order…
             </>
           ) : isLoggedIn ? (
-            isBuy ? "Buy / Long" : "Sell / Short"
+            isBuy ? (
+              "Buy / Long"
+            ) : (
+              "Sell / Short"
+            )
           ) : (
-            "Log in to trade"
+            "Log in"
           )}
         </button>
 

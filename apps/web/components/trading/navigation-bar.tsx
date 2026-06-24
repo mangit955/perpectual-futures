@@ -2,8 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Search, Grid3X3, Gift, Clock, Bell, ChevronDown, LogOut } from "lucide-react";
+import {
+  Search,
+  Grid3X3,
+  Gift,
+  Clock,
+  Bell,
+  ChevronDown,
+  LogOut,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth-context";
+import { Button, buttonVariants } from "../ui/button";
+import { Input } from "../ui/input";
+import { cn } from "@/lib/utils";
 
 // ─── Nav Link Data ───────────────────────────────────────────────────────────
 
@@ -178,12 +197,48 @@ function UserAvatar() {
 
   if (!isLoggedIn) {
     return (
-      <button
-        aria-label="Log in"
-        className="h-8 rounded-md px-3 text-xs font-semibold text-zinc-300 border border-[#27272a] hover:border-zinc-500 transition-colors"
-      >
-        Log in
-      </button>
+      <Dialog>
+        <DialogTrigger
+          className={cn(
+            buttonVariants({ variant: "default" }),
+
+            "cursor-pointer",
+          )}
+        >
+          Log in
+        </DialogTrigger>
+
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Welcome to Flux</DialogTitle>
+
+            <DialogDescription>
+              Sign in to access your trading account.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Your login form goes here */}
+
+          <div className="space-y-4 py-2">
+            <Input placeholder="Email" />
+
+            <Input type="password" placeholder="Password" />
+
+            <Button className="w-full">Sign In</Button>
+
+            <p className="text-center text-sm text-zinc-400">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/signup"
+                type="button"
+                className="hover:text-white! hover:underline! underline! cursor-pointer"
+              >
+                Sign up
+              </Link>
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 
