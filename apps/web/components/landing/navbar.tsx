@@ -12,6 +12,7 @@ import { ArrowUpRight, Menu, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ClickSpark from "../ClickSpark";
+import { useAuth } from "@/lib/auth-context";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
 const docsHref = "/docs";
@@ -28,6 +29,11 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("top");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isLoggedIn, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setScrolled(latest > 16);
@@ -199,23 +205,46 @@ export function Navbar() {
             </motion.span>
           </motion.a>
           <div className="hidden items-center gap-3 lg:flex">
-            <ClickSpark
-              sparkColor="#3B82F6"
-              sparkSize={10}
-              sparkRadius={15}
-              sparkCount={8}
-              duration={400}
-            >
-              <a
-                href="/login"
-                className={cn(
-                  buttonVariants({ size: "sm" }),
-                  "border cursor-pointer bg-white text-black! font-medium",
-                )}
+            {isLoggedIn ? (
+              <>
+                <a
+                  href="/trade"
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "border cursor-pointer bg-white text-black! font-medium",
+                  )}
+                >
+                  Trade
+                </a>
+                <button
+                  onClick={handleLogout}
+                  className={cn(
+                    buttonVariants({ size: "sm", variant: "ghost" }),
+                    "text-zinc-400 hover:text-zinc-50",
+                  )}
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <ClickSpark
+                sparkColor="#3B82F6"
+                sparkSize={10}
+                sparkRadius={15}
+                sparkCount={8}
+                duration={400}
               >
-                Sign Up !
-              </a>
-            </ClickSpark>
+                <a
+                  href="/login"
+                  className={cn(
+                    buttonVariants({ size: "sm" }),
+                    "border cursor-pointer bg-white text-black! font-medium",
+                  )}
+                >
+                  Sign Up !
+                </a>
+              </ClickSpark>
+            )}
           </div>
         </div>
 
@@ -268,6 +297,43 @@ export function Navbar() {
               >
                 Github
               </a>
+              {isLoggedIn ? (
+                <>
+                  <a
+                    className={cn(
+                      buttonVariants({ variant: "default", size: "default" }),
+                      "mt-2 w-full bg-white text-black!",
+                    )}
+                    href="/trade"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    Trade
+                  </a>
+                  <button
+                    className={cn(
+                      buttonVariants({ variant: "secondary", size: "default" }),
+                      "mt-2 w-full",
+                    )}
+                    onClick={() => {
+                      handleLogout();
+                      setMobileOpen(false);
+                    }}
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <a
+                  className={cn(
+                    buttonVariants({ variant: "default", size: "default" }),
+                    "mt-2 w-full bg-white text-black!",
+                  )}
+                  href="/login"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  Sign Up !
+                </a>
+              )}
               <a
                 className={cn(
                   buttonVariants({ variant: "secondary", size: "default" }),
