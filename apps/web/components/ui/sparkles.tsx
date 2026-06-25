@@ -156,6 +156,7 @@ export const SparklesCore = (props: ParticlesProps) => {
                   offset: 0,
                   value: 90,
                 },
+                // @ts-expect-error - tsparticles type definitions are incomplete
                 attract: {
                   distance: 200,
                   enable: false,
@@ -254,6 +255,7 @@ export const SparklesCore = (props: ParticlesProps) => {
               },
               shape: {
                 close: true,
+                // @ts-expect-error - tsparticles type definitions are incomplete
                 fill: true,
                 options: {},
                 type: "circle",

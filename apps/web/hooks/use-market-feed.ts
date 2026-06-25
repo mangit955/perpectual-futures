@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CandleData, MarketData, OrderBookData, RecentTrade } from "@/types/trading";
+import { OrderSide } from "@/types/trading";
 import { getMarketFeed, MockMarketFeed } from "@/lib/mock/websocket";
 import { apiGetOrderBook, convertOrderBookToFrontend } from "@/lib/api";
 import { useWebSocketListener, useWebSocketSubscription } from "./use-websocket";
@@ -98,9 +99,9 @@ export function useRecentTrades(maxTrades: number = 50): RecentTrade[] {
       const recentTrade: RecentTrade = {
         id: trade.tradeId,
         price: trade.price,
-        amount: trade.quantity,
-        side: trade.side,
-        time: trade.timestamp,
+        size: trade.quantity,
+        side: trade.side === "buy" ? OrderSide.Buy : OrderSide.Sell,
+        timestamp: trade.timestamp,
       };
       setTrades((prev) => [recentTrade, ...prev].slice(0, maxTrades));
     },
