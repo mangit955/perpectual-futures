@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
+function Dialog({ ...props }: Omit<DialogPrimitive.Root.Props, 'key'>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
@@ -15,18 +15,18 @@ function DialogTrigger({ ...props }: Omit<DialogPrimitive.Trigger.Props, 'key'>)
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
-function DialogPortal({ ...props }: DialogPrimitive.Portal.Props) {
+function DialogPortal({ ...props }: Omit<DialogPrimitive.Portal.Props, 'key'>) {
   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
 }
 
-function DialogClose({ ...props }: DialogPrimitive.Close.Props) {
+function DialogClose({ ...props }: Omit<DialogPrimitive.Close.Props, 'key'>) {
   return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
 }
 
 function DialogOverlay({
   className,
   ...props
-}: DialogPrimitive.Backdrop.Props) {
+}: Omit<DialogPrimitive.Backdrop.Props, 'key'>) {
   return (
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
@@ -44,7 +44,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   ...props
-}: DialogPrimitive.Popup.Props & {
+}: Omit<DialogPrimitive.Popup.Props, 'key'> & {
   showCloseButton?: boolean
 }) {
   return (
@@ -117,7 +117,7 @@ function DialogFooter({
   )
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
+function DialogTitle({ className, ...props }: Omit<DialogPrimitive.Title.Props, 'key'>) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
@@ -133,7 +133,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
 function DialogDescription({
   className,
   ...props
-}: DialogPrimitive.Description.Props) {
+}: Omit<DialogPrimitive.Description.Props, 'key'>) {
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
