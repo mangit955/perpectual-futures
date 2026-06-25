@@ -13,8 +13,16 @@ export class WebSocketHub {
   private readonly connections = new Map<string, ClientConnection>();
   private readonly topicsByConnection = new Map<string, Set<string>>();
   private readonly connectionsByTopic = new Map<string, Set<string>>();
+  private readonly snapshotProviders = new Map<string, (connectionId: string, topic: string) => void>();
 
   constructor(private readonly authenticate: Authenticator = allowAnonymous) {}
+
+  /**
+   * Register a callback to provide initial snapshots when clients subscribe to a channel
+   */
+  onSubscribe(channel: string, provider: (connectionId: string, topic: string) => void): void {
+    this.snapshotProviders.set(channel, provider);
+  }
 
   connect(connection: ClientConnection): void {
     this.connections.set(connection.id, connection);
@@ -86,6 +94,13 @@ export class WebSocketHub {
     };
 
     sendJson(connection, response);
+    
+    // Send initial snapshot if a provider is registered for this channel
+    const provider = this.snapshotProviders.get(message.channel);
+    if (provider) {
+      provider(connectionId, topic);
+    }
+    
     return response;
   }
 
