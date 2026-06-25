@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CandleData, MarketData, OrderBookData, RecentTrade } from "@/types/trading";
 import { getMarketFeed, MockMarketFeed } from "@/lib/mock/websocket";
 import { apiGetOrderBook, convertOrderBookToFrontend } from "@/lib/api";
+import { useWebSocketListener, useWebSocketSubscription } from "./use-websocket";
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -37,26 +38,33 @@ export function useOrderBook(): OrderBookData | null {
   const feed = useFeed();
   const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
 
+  // Use WebSocket subscription when real API is enabled
+  const { data: wsOrderBook } = useWebSocketSubscription<{
+    market: string;
+    sequence: number;
+    bids: Array<{ priceTicks: number; totalQtyLots: number }>;
+    asks: Array<{ priceTicks: number; totalQtyLots: number }>;
+  }>("orderbook", DEFAULT_MARKET_ID, undefined, USE_REAL_API);
+
   useEffect(() => {
     if (USE_REAL_API) {
-      // Fetch real orderbook data from API
-      const fetchOrderBook = async () => {
-        try {
-          const backendBook = await apiGetOrderBook(DEFAULT_MARKET_ID, 15);
-          const frontendBook = convertOrderBookToFrontend(backendBook);
-          setOrderBook(frontendBook);
-        } catch (error) {
-          console.error("Failed to fetch orderbook:", error);
-          // Fallback to mock data
-          setOrderBook(feed.getInitialOrderBook());
-        }
-      };
-
-      fetchOrderBook();
-      
-      // Set up polling for updates
-      const interval = setInterval(fetchOrderBook, 1000);
-      return () => clearInterval(interval);
+      if (wsOrderBook) {
+        // Convert WebSocket data to frontend format
+        const frontendBook = convertOrderBookToFrontend(wsOrderBook);
+        setOrderBook(frontendBook);
+      } else {
+        // Fetch initial orderbook data from API
+        const fetchOrderBook = async () => {
+          try {
+            const backendBook = await apiGetOrderBook(DEFAULT_MARKET_ID, 15);
+            const frontendBook = convertOrderBookToFrontend(backendBook);
+            setOrderBook(frontendBook);
+          } catch (error) {
+            console.error("Failed to fetch orderbook:", error);
+          }
+        };
+        fetchOrderBook();
+      }
     } else {
       // Use mock data
       setOrderBook(feed.getInitialOrderBook());
@@ -65,7 +73,7 @@ export function useOrderBook(): OrderBookData | null {
       });
       return unsub;
     }
-  }, [feed]);
+  }, [feed, wsOrderBook]);
 
   return orderBook;
 }
@@ -76,12 +84,38 @@ export function useRecentTrades(maxTrades: number = 50): RecentTrade[] {
   const feed = useFeed();
   const [trades, setTrades] = useState<RecentTrade[]>([]);
 
+  // Listen for trade updates via WebSocket
+  useWebSocketListener<{
+    tradeId: string;
+    price: number;
+    quantity: number;
+    side: "buy" | "sell";
+    timestamp: number;
+  }>(
+    "trades",
+    DEFAULT_MARKET_ID,
+    (trade) => {
+      const recentTrade: RecentTrade = {
+        id: trade.tradeId,
+        price: trade.price,
+        amount: trade.quantity,
+        side: trade.side,
+        time: trade.timestamp,
+      };
+      setTrades((prev) => [recentTrade, ...prev].slice(0, maxTrades));
+    },
+    undefined,
+    USE_REAL_API
+  );
+
   useEffect(() => {
-    setTrades(feed.getInitialTrades());
-    const unsub = feed.subscribe("trade", (trade) => {
-      setTrades((prev) => [trade, ...prev].slice(0, maxTrades));
-    });
-    return unsub;
+    if (!USE_REAL_API) {
+      setTrades(feed.getInitialTrades());
+      const unsub = feed.subscribe("trade", (trade) => {
+        setTrades((prev) => [trade, ...prev].slice(0, maxTrades));
+      });
+      return unsub;
+    }
   }, [feed, maxTrades]);
 
   return trades;

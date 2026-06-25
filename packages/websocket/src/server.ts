@@ -94,6 +94,8 @@ function parseClientMessage(rawMessage: string | Buffer): ClientMessage | null {
       parsed.channel !== "trades" &&
       parsed.channel !== "orderbook" &&
       parsed.channel !== "positions" &&
+      parsed.channel !== "balances" &&
+      parsed.channel !== "orders" &&
       parsed.channel !== "mark_price" &&
       parsed.channel !== "funding"
     ) {

@@ -33,15 +33,6 @@ export function createApiApp(options: ApiAppOptions = {}) {
     const url = new URL(request.url);
     const method = request.method.toUpperCase();
 
-    // Handle WebSocket upgrade
-    if (url.pathname === "/ws") {
-      if (options.hub) {
-        const { handleUpgrade } = await import("../../../packages/websocket/src/index");
-        return handleUpgrade(request, { hub });
-      }
-      return new Response("WebSocket not configured", { status: 503 });
-    }
-
     // Handle CORS preflight
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -194,7 +185,7 @@ export function createApiApp(options: ApiAppOptions = {}) {
     return withCors(res);
   };
 
-  return { fetch: fetchWithCors, runtime };
+  return { fetch: fetchWithCors, runtime, hub };
 }
 
 function authToken(request: Request): string | undefined {
