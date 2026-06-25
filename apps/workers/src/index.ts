@@ -51,10 +51,11 @@ async function runProductionWorkers(): Promise<void> {
     return rows.map((row: { id: string }) => row.id);
   };
   const outbox = new OutboxPublisher(client, bus);
+  const snapshotDir = Bun.env.SNAPSHOT_DIR ?? "/app/snapshots";
   const matching = new ProductionMatchingWorker({
     bus,
     markets,
-    snapshotStore: new FileSnapshotStore(requiredEnv("SNAPSHOT_DIR")),
+    snapshotStore: new FileSnapshotStore(snapshotDir),
     snapshotClient: client,
     snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 60_000),
   });

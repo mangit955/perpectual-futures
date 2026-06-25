@@ -22,6 +22,8 @@ This guide will help you deploy the Flux trading platform.
    REDIS_URL=your-redis-url
    JWT_SECRET=your-secret-key
    PASSWORD_PEPPER=your-pepper-key
+   SNAPSHOT_DIR=/app/snapshots
+   SNAPSHOT_INTERVAL_MS=60000
   ```
 3. Note down your deployed URL (e.g., `https://flux-api.railway.app`)
 
