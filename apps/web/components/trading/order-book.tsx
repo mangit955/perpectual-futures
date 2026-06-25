@@ -7,6 +7,7 @@ import {
   useLastPrice,
   formatPrice,
 } from "@/hooks/use-market-feed";
+import { useOrders, useOpenOrders } from "@/hooks/use-api-data";
 import type { OrderBookEntry, BookTab } from "@/types/trading";
 import { cn } from "@/lib/utils";
 import { RecentTrades } from "@/components/trading/recent-trades";
@@ -167,9 +168,10 @@ interface OrderRowProps {
   maxTotal: number;
   side: "ask" | "bid";
   precision: number;
+  hasMyOrder?: boolean;
 }
 
-function OrderRow({ entry, maxTotal, side, precision }: OrderRowProps) {
+function OrderRow({ entry, maxTotal, side, precision, hasMyOrder }: OrderRowProps) {
   const depthPercent = maxTotal > 0 ? (entry.total / maxTotal) * 100 : 0;
   const bgColor =
     side === "ask" ? `rgba(239,68,68,0.15)` : `rgba(34,197,94,0.15)`;
@@ -178,7 +180,10 @@ function OrderRow({ entry, maxTotal, side, precision }: OrderRowProps) {
     precision < 1 ? (String(precision).split(".")[1]?.length ?? 2) : 0;
 
   return (
-    <div className="relative flex items-center px-2 h-5 hover:bg-white/[0.02] transition-colors duration-75 cursor-pointer overflow-hidden">
+    <div className={cn(
+      "relative flex items-center px-2 h-5 hover:bg-white/[0.02] transition-colors duration-75 cursor-pointer overflow-hidden",
+      hasMyOrder && "bg-blue-500/10 border-l-2 border-blue-500"
+    )}>
       <motion.div
         className={cn(
           "absolute right-0 top-0 h-full",
@@ -196,6 +201,7 @@ function OrderRow({ entry, maxTotal, side, precision }: OrderRowProps) {
         className={cn(
           "relative z-10 flex-1 text-left font-normal text-xs tabular-nums",
           side === "ask" ? "text-red-400" : "text-emerald-400",
+          hasMyOrder && "font-semibold"
         )}
       >
         {formatPrice(entry.price, decimals)}
@@ -283,6 +289,29 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
   const [activeTab, setActiveTab] = useState<BookTab>(defaultTab);
   const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [precision, setPrecision] = useState<Precision>("0.01");
+
+  // Fetch user's open orders
+  const { data: allOrders } = useOrders();
+  const myOpenOrders = useOpenOrders(allOrders);
+
+  // Create a map of prices where user has open orders
+  const myOrderPrices = useMemo(() => {
+    const priceMap = new Map<number, { side: "buy" | "sell"; size: number }>();
+    myOpenOrders.forEach((order) => {
+      if (order.price) {
+        const existing = priceMap.get(order.price);
+        if (existing) {
+          existing.size += order.remainingQuantity;
+        } else {
+          priceMap.set(order.price, {
+            side: order.side.toLowerCase() as "buy" | "sell",
+            size: order.remainingQuantity,
+          });
+        }
+      }
+    });
+    return priceMap;
+  }, [myOpenOrders]);
 
   // ── Aggregate entries to selected precision ──
   const aggregatedData = useMemo(() => {
@@ -490,15 +519,20 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
               {viewMode !== "bids" && (
                 <div className="flex flex-col justify-end flex-1 min-h-0 overflow-y-auto overscroll-contain">
                   <div className="flex flex-col">
-                    {displayAsks.map((entry) => (
-                      <OrderRow
-                        key={entry.price}
-                        entry={entry}
-                        maxTotal={maxAskTotal}
-                        side="ask"
-                        precision={precisionNum}
-                      />
-                    ))}
+                    {displayAsks.map((entry) => {
+                      const myOrder = myOrderPrices.get(entry.price);
+                      const hasMyOrder = myOrder?.side === "sell";
+                      return (
+                        <OrderRow
+                          key={entry.price}
+                          entry={entry}
+                          maxTotal={maxAskTotal}
+                          side="ask"
+                          precision={precisionNum}
+                          hasMyOrder={hasMyOrder}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -516,15 +550,20 @@ export function OrderBook({ defaultTab = "book" }: OrderBookProps) {
               {viewMode !== "asks" && (
                 <div className="flex flex-col flex-1 min-h-0 overflow-y-auto overscroll-contain">
                   <div className="flex flex-col">
-                    {displayBids.map((entry) => (
-                      <OrderRow
-                        key={entry.price}
-                        entry={entry}
-                        maxTotal={maxBidTotal}
-                        side="bid"
-                        precision={precisionNum}
-                      />
-                    ))}
+                    {displayBids.map((entry) => {
+                      const myOrder = myOrderPrices.get(entry.price);
+                      const hasMyOrder = myOrder?.side === "buy";
+                      return (
+                        <OrderRow
+                          key={entry.price}
+                          entry={entry}
+                          maxTotal={maxBidTotal}
+                          side="bid"
+                          precision={precisionNum}
+                          hasMyOrder={hasMyOrder}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               )}
