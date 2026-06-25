@@ -8,7 +8,7 @@ import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react"
 
 const Select = SelectPrimitive.Root
 
-function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
+function SelectGroup({ className, ...props }: Omit<SelectPrimitive.Group.Props, 'key'>) {
   return (
     <SelectPrimitive.Group
       data-slot="select-group"
@@ -18,7 +18,7 @@ function SelectGroup({ className, ...props }: SelectPrimitive.Group.Props) {
   )
 }
 
-function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
+function SelectValue({ className, ...props }: Omit<SelectPrimitive.Value.Props, 'key'>) {
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
@@ -33,7 +33,7 @@ function SelectTrigger({
   size = "default",
   children,
   ...props
-}: SelectPrimitive.Trigger.Props & {
+}: Omit<SelectPrimitive.Trigger.Props, 'key'> & {
   size?: "sm" | "default"
 }) {
   return (
@@ -65,7 +65,7 @@ function SelectContent({
   alignOffset = 0,
   alignItemWithTrigger = true,
   ...props
-}: SelectPrimitive.Popup.Props &
+}: Omit<SelectPrimitive.Popup.Props, 'key'> &
   Pick<
     SelectPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "alignItemWithTrigger"
@@ -98,7 +98,7 @@ function SelectContent({
 function SelectLabel({
   className,
   ...props
-}: SelectPrimitive.GroupLabel.Props) {
+}: Omit<SelectPrimitive.GroupLabel.Props, 'key'>) {
   return (
     <SelectPrimitive.GroupLabel
       data-slot="select-label"
@@ -112,7 +112,7 @@ function SelectItem({
   className,
   children,
   ...props
-}: SelectPrimitive.Item.Props) {
+}: Omit<SelectPrimitive.Item.Props, 'key'>) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -139,7 +139,7 @@ function SelectItem({
 function SelectSeparator({
   className,
   ...props
-}: SelectPrimitive.Separator.Props) {
+}: Omit<SelectPrimitive.Separator.Props, 'key'>) {
   return (
     <SelectPrimitive.Separator
       data-slot="select-separator"

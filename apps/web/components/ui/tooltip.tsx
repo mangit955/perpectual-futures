@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 function TooltipProvider({
   delay = 0,
   ...props
-}: TooltipPrimitive.Provider.Props) {
+}: Omit<TooltipPrimitive.Provider.Props, 'key'>) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
@@ -17,11 +17,11 @@ function TooltipProvider({
   )
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
+function Tooltip({ ...props }: Omit<TooltipPrimitive.Root.Props, 'key'>) {
   return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
+function TooltipTrigger({ ...props }: Omit<TooltipPrimitive.Trigger.Props, 'key'>) {
   return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
 }
 
@@ -33,7 +33,7 @@ function TooltipContent({
   alignOffset = 0,
   children,
   ...props
-}: TooltipPrimitive.Popup.Props &
+}: Omit<TooltipPrimitive.Popup.Props, 'key'> &
   Pick<
     TooltipPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset"

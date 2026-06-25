@@ -9,7 +9,7 @@ function Slider({
   min = 0,
   max = 100,
   ...props
-}: SliderPrimitive.Root.Props) {
+}: Omit<SliderPrimitive.Root.Props, 'key'>) {
   const _values = Array.isArray(value)
     ? value
     : Array.isArray(defaultValue)
