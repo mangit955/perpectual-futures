@@ -84,58 +84,160 @@ export class PersistenceService {
         return ["orders.mark_open"];
 
       case "order.rejected":
+        // Unlock margin when order is rejected
+        const rejectedOrder = await tx.findOrder(event.orderId);
+        if (rejectedOrder && !rejectedOrder.reduceOnly) {
+          const market = await tx.findMarket(event.market);
+          if (market) {
+            const leverage = 10;
+            const price = Number(rejectedOrder.price || 0);
+            const quantity = Number(rejectedOrder.quantity);
+            const notional = price * quantity;
+            const marginLocked = notional / leverage;
+            const feeEstimate = notional * Number(market.takerFeeRate);
+            const totalToUnlock = marginLocked + feeEstimate;
+            
+            await tx.unlockBalanceForOrder(rejectedOrder.userId, "USDC", totalToUnlock);
+          }
+        }
+        
         await tx.updateOrderStatus({
           orderId: event.orderId,
           status: "REJECTED",
           rejectionReason: event.reason,
           updatedAt: new Date(event.timestamp),
         });
-        return ["orders.mark_rejected"];
+        return ["orders.mark_rejected", "balance.unlock"];
 
       case "order.rested":
         await tx.upsertOrder(orderWriteFromRestedEvent(event));
         return ["orders.upsert_rested"];
 
       case "order.cancelled":
+        // Unlock margin when order is cancelled
+        const cancelledOrder = await tx.findOrder(event.orderId);
+        if (cancelledOrder && !cancelledOrder.reduceOnly && event.remainingQtyLots > 0) {
+          const market = await tx.findMarket(event.market);
+          if (market) {
+            // Calculate locked margin to release (proportional to remaining quantity)
+            const leverage = 10; // Default leverage, should ideally be stored with order
+            const price = Number(cancelledOrder.price || 0);
+            const remainingNotional = price * event.remainingQtyLots;
+            const marginToUnlock = remainingNotional / leverage;
+            const feeEstimate = remainingNotional * Number(market.takerFeeRate);
+            const totalToUnlock = marginToUnlock + feeEstimate;
+
+            // Get quote asset from market
+            const marketData = await tx.findMarket(event.market);
+            if (marketData) {
+              // Extract quote asset - assuming format like "BTC-PERP" uses USDC
+              await tx.unlockBalanceForOrder(cancelledOrder.userId, "USDC", totalToUnlock);
+            }
+          }
+        }
+        
         await tx.updateOrderStatus({
           orderId: event.orderId,
           status: "CANCELLED",
           remainingQuantity: decimalString(event.remainingQtyLots),
           updatedAt: new Date(event.timestamp),
         });
-        return ["orders.mark_cancelled"];
+        return ["orders.mark_cancelled", "balance.unlock"];
 
       case "order.cancel_rejected":
         return ["orders.cancel_rejected_noop"];
 
       case "order.expired":
+        // Unlock margin when order expires
+        const expiredOrder = await tx.findOrder(event.orderId);
+        if (expiredOrder && !expiredOrder.reduceOnly && event.remainingQtyLots > 0) {
+          const market = await tx.findMarket(event.market);
+          if (market) {
+            const leverage = 10;
+            const price = Number(expiredOrder.price || 0);
+            const remainingNotional = price * event.remainingQtyLots;
+            const marginToUnlock = remainingNotional / leverage;
+            const feeEstimate = remainingNotional * Number(market.takerFeeRate);
+            const totalToUnlock = marginToUnlock + feeEstimate;
+            
+            await tx.unlockBalanceForOrder(expiredOrder.userId, "USDC", totalToUnlock);
+          }
+        }
+        
         await tx.updateOrderStatus({
           orderId: event.orderId,
           status: "EXPIRED",
           remainingQuantity: decimalString(event.remainingQtyLots),
           updatedAt: new Date(event.timestamp),
         });
-        return ["orders.mark_expired"];
+        return ["orders.mark_expired", "balance.unlock"];
 
       case "trade.executed":
         await tx.createFills(fillsFromTrade(event));
+        
+        // Handle maker order
+        const makerStatus = orderStatusFromRemaining(event.makerOrderRemainingQtyLots);
         await tx.updateOrderStatus({
           orderId: event.makerOrderId,
-          status: orderStatusFromRemaining(event.makerOrderRemainingQtyLots),
+          status: makerStatus,
           remainingQuantity: decimalString(event.makerOrderRemainingQtyLots),
           updatedAt: new Date(event.timestamp),
         });
+        
+        // Unlock margin for filled portion of maker order
+        if (makerStatus === "FILLED") {
+          const makerOrder = await tx.findOrder(event.makerOrderId);
+          if (makerOrder && !makerOrder.reduceOnly) {
+            const market = await tx.findMarket(event.market);
+            if (market) {
+              const leverage = 10;
+              const price = Number(makerOrder.price || 0);
+              const totalQuantity = Number(makerOrder.quantity);
+              const notional = price * totalQuantity;
+              const marginLocked = notional / leverage;
+              const feeEstimate = notional * Number(market.takerFeeRate);
+              const totalToUnlock = marginLocked + feeEstimate;
+              
+              await tx.unlockBalanceForOrder(makerOrder.userId, "USDC", totalToUnlock);
+            }
+          }
+        }
+        
+        // Handle taker order
+        const takerStatus = orderStatusFromRemaining(event.takerOrderRemainingQtyLots);
         await tx.updateOrderStatus({
           orderId: event.takerOrderId,
-          status: orderStatusFromRemaining(event.takerOrderRemainingQtyLots),
+          status: takerStatus,
           remainingQuantity: decimalString(event.takerOrderRemainingQtyLots),
           updatedAt: new Date(event.timestamp),
         });
+        
+        // Unlock margin for filled portion of taker order
+        if (takerStatus === "FILLED") {
+          const takerOrder = await tx.findOrder(event.takerOrderId);
+          if (takerOrder && !takerOrder.reduceOnly) {
+            const market = await tx.findMarket(event.market);
+            if (market) {
+              const leverage = 10;
+              const price = Number(takerOrder.price || 0);
+              const totalQuantity = Number(takerOrder.quantity);
+              const notional = price * totalQuantity;
+              const marginLocked = notional / leverage;
+              const feeEstimate = notional * Number(market.takerFeeRate);
+              const totalToUnlock = marginLocked + feeEstimate;
+              
+              await tx.unlockBalanceForOrder(takerOrder.userId, "USDC", totalToUnlock);
+            }
+          }
+        }
+        
         await applyTradeToPositions(tx, event);
         return [
           "fills.create_many",
           "orders.update_maker_after_trade",
           "orders.update_taker_after_trade",
+          "balance.unlock_maker",
+          "balance.unlock_taker",
           "positions.upsert_maker_after_trade",
           "positions.upsert_taker_after_trade",
         ];

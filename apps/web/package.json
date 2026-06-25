@@ -7,7 +7,10 @@
     "build": "next build",
     "dev": "next dev -p 3001 --webpack",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "check-config": "node check-config.js",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

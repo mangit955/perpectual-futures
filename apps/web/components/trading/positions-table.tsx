@@ -182,7 +182,7 @@ function PnlCell({ value, percent }: { value: number; percent?: number }) {
   return (
     <span
       className={cn(
-        "font-mono",
+        "font-normal",
         isPositive ? "text-[#22c55e]" : "text-[#ef4444]",
       )}
     >
@@ -289,7 +289,7 @@ function DataTable<T>({
               {row.getVisibleCells().map((cell) => (
                 <td
                   key={cell.id}
-                  className="whitespace-nowrap border-b border-[#1e1e22]/50 px-3 py-2 font-mono text-zinc-300"
+                  className="whitespace-nowrap border-b border-[#1e1e22]/50 px-3 py-2 font-normal text-zinc-300"
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </td>
@@ -363,13 +363,41 @@ export function PositionsTable() {
 
   const handleCancel = useCallback(
     async (orderId: string) => {
-      if (!token) return;
+      if (!token) {
+        console.error("❌ Cannot cancel order: no authentication token");
+        alert("Please log in to cancel orders");
+        return;
+      }
+      
+      console.log("🔄 Attempting to cancel order:", orderId);
+      console.log("📝 Using token:", token?.substring(0, 20) + "...");
+      
       setCancellingIds((prev) => new Set(prev).add(orderId));
+      
       try {
-        await apiCancelOrder(token, orderId);
-        refetchOrders();
-      } catch {
-        // Silently ignore; row will stay visible until next refetch
+        const result = await apiCancelOrder(token, orderId);
+        console.log("✅ Order cancellation successful:", result);
+        
+        // Immediately refetch orders to update the UI
+        await refetchOrders();
+        console.log("🔄 Orders refreshed");
+      } catch (err) {
+        console.error("❌ Failed to cancel order:", err);
+        
+        // Enhanced error logging
+        if (err instanceof Error) {
+          console.error("📋 Error details:", {
+            name: err.name,
+            message: err.message,
+            stack: err.stack,
+          });
+          
+          // Show user-friendly error message
+          alert(`Failed to cancel order: ${err.message}`);
+        } else {
+          console.error("📋 Unknown error type:", err);
+          alert("Failed to cancel order: Unknown error");
+        }
       } finally {
         setCancellingIds((prev) => {
           const next = new Set(prev);

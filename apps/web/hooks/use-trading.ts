@@ -32,30 +32,31 @@ export function useBalances(token: string | null) {
     USE_REAL_API && !!token
   );
 
-  // Fetch initial balances
-  useEffect(() => {
+  // Fetch balances from API
+  const fetchBalances = useCallback(async () => {
     if (!token) {
       setBalances([]);
       setLoading(false);
       return;
     }
 
-    const fetchBalances = async () => {
-      try {
-        setLoading(true);
-        const data = await apiGetBalances(token);
-        setBalances(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch balances");
-        console.error("Failed to fetch balances:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBalances();
+    try {
+      setLoading(true);
+      const data = await apiGetBalances(token);
+      setBalances(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch balances");
+      console.error("Failed to fetch balances:", err);
+    } finally {
+      setLoading(false);
+    }
   }, [token]);
+
+  // Fetch initial balances
+  useEffect(() => {
+    fetchBalances();
+  }, [fetchBalances]);
 
   // Update balances when WebSocket data arrives
   useEffect(() => {
@@ -64,7 +65,7 @@ export function useBalances(token: string | null) {
     }
   }, [wsBalances]);
 
-  return { balances, loading, error };
+  return { balances, loading, error, refetch: fetchBalances };
 }
 
 /**

@@ -216,4 +216,53 @@ class PrismaPersistenceTransaction implements PersistenceTransaction {
       },
     });
   }
+
+  async findOrder(orderId: string): Promise<OrderWrite | null> {
+    const row = await this.tx.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return row as OrderWrite;
+  }
+
+  async unlockBalanceForOrder(userId: string, asset: string, amount: number): Promise<void> {
+    if (amount <= 0) {
+      return;
+    }
+
+    const balance = await this.tx.balance.findUnique({
+      where: {
+        userId_asset: {
+          userId,
+          asset,
+        },
+      },
+    });
+
+    if (!balance) {
+      console.warn(`⚠️  Balance not found for user ${userId}, asset ${asset}`);
+      return;
+    }
+
+    const currentLocked = Number((balance as { locked: unknown }).locked);
+    const newLocked = Math.max(0, currentLocked - amount);
+
+    await this.tx.balance.update({
+      where: {
+        userId_asset: {
+          userId,
+          asset,
+        },
+      },
+      data: {
+        locked: String(newLocked),
+      },
+    });
+
+    console.log(`🔓 Unlocked ${amount.toFixed(2)} ${asset} for user ${userId} (remaining locked: ${newLocked.toFixed(2)})`);
+  }
 }

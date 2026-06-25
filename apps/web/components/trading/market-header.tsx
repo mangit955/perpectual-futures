@@ -21,6 +21,11 @@ function MarketPill({
 
       {/* Symbol */}
       <span className="text-sm font-semibold text-white">{symbol}</span>
+      
+      {/* Live badge - indicates real Binance price */}
+      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-500 uppercase tracking-wide border border-emerald-500/20">
+        Live
+      </span>
 
       {/* Leverage badge */}
       <span className="rounded bg-[#27272a] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">

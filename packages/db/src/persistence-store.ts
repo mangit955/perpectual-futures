@@ -22,4 +22,6 @@ export interface PersistenceTransaction {
   updateOrderStatus(update: OrderStatusUpdate): Promise<void>;
   createFills(fills: FillWrite[]): Promise<void>;
   upsertPosition(position: PositionWrite): Promise<void>;
+  findOrder(orderId: string): Promise<OrderWrite | null>;
+  unlockBalanceForOrder(userId: string, asset: string, amount: number): Promise<void>;
 }

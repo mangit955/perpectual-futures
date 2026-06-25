@@ -74,13 +74,20 @@ export class PrismaApiRuntime implements ApiRuntime {
 
   async register(email: string, password: string): Promise<{ id: string }> {
     validateEmail(email);
+    
+    console.log(`📝 Registration attempt for email: ${email}`);
+    console.log(`📝 Password length: ${password.length}`);
+    console.log(`📝 Password provided: ${password}`);
+    
     const passwordHash = await hashPassword(password);
+    console.log(`📝 Generated hash: ${passwordHash.substring(0, 20)}...`);
 
     try {
       const user = await this.options.client.user.create({
         data: { email, passwordHash },
       });
 
+      console.log(`✅ User registered successfully: ${String(field(user, "id"))}`);
       return { id: String(field(user, "id")) };
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -92,12 +99,29 @@ export class PrismaApiRuntime implements ApiRuntime {
   }
 
   async login(email: string, password: string): Promise<{ token: string; userId: string }> {
+    console.log(`🔐 Login attempt for email: ${email}`);
+    
     const user = await this.options.client.user.findUnique({ where: { email } });
 
-    if (!user || !(await verifyPassword(password, String(field(user, "passwordHash"))))) {
+    if (!user) {
+      console.log(`❌ User not found for email: ${email}`);
       throw new Error("invalid credentials");
     }
 
+    const storedHash = String(field(user, "passwordHash"));
+    console.log(`🔑 Stored hash: ${storedHash.substring(0, 20)}...`);
+    console.log(`🔑 Password length: ${password.length}`);
+    console.log(`🔑 Password provided: ${password}`);
+    
+    const isValid = await verifyPassword(password, storedHash);
+    console.log(`🔑 Password verification result: ${isValid}`);
+    
+    if (!isValid) {
+      console.log(`❌ Invalid password for email: ${email}`);
+      throw new Error("invalid credentials");
+    }
+
+    console.log(`✅ Login successful for user: ${String(field(user, "id"))}`);
     const userId = String(field(user, "id"));
     const token = await issueJwt({
       userId,
@@ -282,6 +306,9 @@ export class PrismaApiRuntime implements ApiRuntime {
       throw new Error(check.reason ?? "order rejected");
     }
 
+    // Calculate the margin to lock for this order
+    const marginToLock = check.requiredInitialMargin + check.requiredFee;
+
     const now = this.now();
     const orderId = `order_${crypto.randomUUID()}`;
     const order = runtimeOrderFromInput(orderId, input, now);
@@ -304,6 +331,45 @@ export class PrismaApiRuntime implements ApiRuntime {
     };
 
     await this.options.client.$transaction(async (tx) => {
+      // Lock the required margin in the user's balance
+      if (marginToLock > 0 && !input.reduceOnly) {
+        const currentBalance = await tx.balance.findUnique({
+          where: {
+            userId_asset: {
+              userId: input.userId,
+              asset: market.quoteAsset,
+            },
+          },
+        });
+
+        if (!currentBalance) {
+          throw new Error("balance not found");
+        }
+
+        const currentTotal = Number(field(currentBalance, "total"));
+        const currentLocked = Number(field(currentBalance, "locked"));
+        const available = currentTotal - currentLocked;
+
+        if (available < marginToLock) {
+          throw new Error("insufficient available balance");
+        }
+
+        // Update balance with locked amount
+        await tx.balance.update({
+          where: {
+            userId_asset: {
+              userId: input.userId,
+              asset: market.quoteAsset,
+            },
+          },
+          data: {
+            locked: String(currentLocked + marginToLock),
+          },
+        });
+
+        console.log(`🔒 Locked ${marginToLock.toFixed(2)} ${market.quoteAsset} for order ${orderId}`);
+      }
+
       await tx.order.create({
         data: {
           id: order.id,

@@ -134,6 +134,16 @@ class InMemoryPersistenceTransaction implements PersistenceTransaction {
       clonePosition(position),
     );
   }
+
+  async findOrder(orderId: string): Promise<OrderWrite | null> {
+    const order = this.state.orders.get(orderId);
+    return order ? cloneOrder(order) : null;
+  }
+
+  async unlockBalanceForOrder(userId: string, asset: string, amount: number): Promise<void> {
+    // In-memory implementation - balances not tracked in this store
+    console.log(`🔓 [In-Memory] Unlocked ${amount.toFixed(2)} ${asset} for user ${userId}`);
+  }
 }
 
 function cloneState(state: InMemoryPersistenceState): InMemoryPersistenceState {

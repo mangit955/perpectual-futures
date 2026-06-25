@@ -81,9 +81,19 @@ export function generateNextCandle(lastCandle: CandleData): CandleData {
   };
 }
 
-export function updateCandleInPlace(candle: CandleData): CandleData {
-  const tick = (Math.random() - 0.5) * 0.1;
-  const newClose = roundTo(candle.close + tick, 2);
+export function updateCandleInPlace(candle: CandleData, targetPrice?: number): CandleData {
+  let newClose: number;
+  
+  if (targetPrice !== undefined) {
+    // Move towards the target price (Binance real price)
+    const diff = targetPrice - candle.close;
+    const move = diff * 0.1; // Move 10% of the way towards target
+    newClose = roundTo(candle.close + move, 2);
+  } else {
+    // Random walk
+    const tick = (Math.random() - 0.5) * 0.1;
+    newClose = roundTo(candle.close + tick, 2);
+  }
 
   return {
     ...candle,
@@ -131,7 +141,40 @@ export function generateOrderBook(midPrice: number, levels: number = 15): OrderB
   };
 }
 
-export function perturbOrderBook(book: OrderBookData): OrderBookData {
+export function perturbOrderBook(book: OrderBookData, microChangesOnly: boolean = false): OrderBookData {
+  if (microChangesOnly) {
+    // Only update quantities, keep prices stable
+    const asks = book.asks.map(entry => ({
+      ...entry,
+      size: roundTo(entry.size + (Math.random() - 0.5) * entry.size * 0.1, 2),
+    }));
+    
+    const bids = book.bids.map(entry => ({
+      ...entry,
+      size: roundTo(entry.size + (Math.random() - 0.5) * entry.size * 0.1, 2),
+    }));
+    
+    // Recalculate totals
+    let askCumulative = 0;
+    for (const entry of asks) {
+      askCumulative += entry.size;
+      entry.total = roundTo(askCumulative, 2);
+    }
+    
+    let bidCumulative = 0;
+    for (const entry of bids) {
+      bidCumulative += entry.size;
+      entry.total = roundTo(bidCumulative, 2);
+    }
+    
+    return {
+      ...book,
+      asks,
+      bids,
+    };
+  }
+  
+  // Original behavior: drift the price
   const drift = (Math.random() - 0.5) * 0.04;
   const newMid = roundTo(book.midPrice + drift, 2);
   return generateOrderBook(newMid, book.asks.length);

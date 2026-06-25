@@ -89,10 +89,25 @@ export interface SubmitOrderPayload {
 
 // ─── Client ──────────────────────────────────────────────────────────────────
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+// Get API URL with better fallback handling
+function getApiUrl(): string {
+  if (typeof window !== 'undefined') {
+    // Browser environment
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    if (!url) {
+      console.warn('[API] NEXT_PUBLIC_API_URL not set, using default: http://localhost:3000');
+      return "http://localhost:3000";
+    }
+    console.log('[API] Using API URL:', url);
+    return url;
+  }
+  // Server environment
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+}
 
-class ApiError extends Error {
+const BASE_URL = getApiUrl();
+
+export class ApiError extends Error {
   constructor(
     public code: string,
     public status: number,
@@ -114,15 +129,40 @@ async function request<T>(
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
-  const data = (await res.json()) as T & { error?: { code: string; message: string } };
+  console.log(`[API] ${options.method || 'GET'} ${BASE_URL}${path}`);
+  
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    
+    console.log(`[API] Response status: ${res.status} ${res.statusText}`);
+    
+    const data = (await res.json()) as T & { error?: { code: string; message: string } };
 
-  if (!res.ok) {
-    const err = (data as { error?: { code: string; message: string } }).error;
-    throw new ApiError(err?.code ?? "UNKNOWN", res.status, err?.message);
+    if (!res.ok) {
+      const err = (data as { error?: { code: string; message: string } }).error;
+      const errorCode = err?.code ?? "UNKNOWN";
+      const errorMessage = err?.message ?? `HTTP ${res.status}`;
+      
+      console.error(`[API] Error: ${errorCode} - ${errorMessage}`);
+      
+      throw new ApiError(errorCode, res.status, errorMessage);
+    }
+
+    console.log(`[API] Success:`, data);
+    return data;
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    
+    // Network or parsing error
+    console.error(`[API] Network/Parse error:`, error);
+    throw new ApiError(
+      "NETWORK_ERROR",
+      0,
+      error instanceof Error ? error.message : "Network request failed"
+    );
   }
-
-  return data;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -286,5 +326,3 @@ export async function apiWithdraw(
     token,
   );
 }
-
-export { ApiError };

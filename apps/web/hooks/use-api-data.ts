@@ -92,7 +92,51 @@ export function usePositions(): AsyncState<ApiPosition[]> {
 
 export function useOrders(): AsyncState<ApiOrder[]> {
   const { token } = useAuth();
-  return useApiData(apiGetOrders, token);
+  const result = useApiData(apiGetOrders, token);
+  
+  // Subscribe to real-time order updates via WebSocket
+  const [wsOrders, setWsOrders] = useState<ApiOrder[] | null>(null);
+  
+  useEffect(() => {
+    if (!token) {
+      setWsOrders(null);
+      return;
+    }
+    
+    let cleanup: (() => void) | undefined;
+    
+    // Import WebSocket client dynamically to avoid SSR issues
+    import("@/lib/websocket-client").then(({ WebSocketClient }) => {
+      const ws = new WebSocketClient();
+      
+      ws.connect().then(() => {
+        ws.subscribe("orders", undefined, token);
+        
+        const unsubscribe = ws.on("orders", (message) => {
+          if (message.type === "snapshot" || message.type === "update") {
+            setWsOrders(message.data);
+          }
+        });
+        
+        cleanup = () => {
+          unsubscribe();
+          ws.unsubscribe("orders");
+        };
+      }).catch(err => {
+        console.error("Failed to connect to WebSocket for orders:", err);
+      });
+    });
+    
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [token]);
+  
+  // Use WebSocket data if available, otherwise use API data
+  return {
+    ...result,
+    data: wsOrders ?? result.data,
+  };
 }
 
 export function useOpenOrders(allOrders: ApiOrder[] | null): ApiOrder[] {

@@ -216,9 +216,17 @@ export class RuntimePersistenceWorker {
       // Publish updated balances  
       const balances = [...this.store.balances.values()].filter(b => b.userId === userId);
       this.hub.publish({
-        channel: "balances", // Note: This channel needs to be added to WebSocket types
+        channel: "balances",
         userId,
         data: balances,
+      });
+
+      // Publish updated orders
+      const orders = [...this.store.orders.values()].filter(o => o.userId === userId);
+      this.hub.publish({
+        channel: "orders",
+        userId,
+        data: orders,
       });
     } catch (error) {
       console.error(`Failed to publish private updates for user ${userId}:`, error);

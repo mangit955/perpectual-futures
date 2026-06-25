@@ -14,7 +14,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { useUsdcBalance } from "@/hooks/use-api-data";
+import { useBalances } from "@/hooks/use-api-data";
 import { apiSubmitOrder, ApiError } from "@/lib/api";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -463,7 +463,19 @@ function OrderBanner({
 export function TradePanel() {
   const lastPrice = useLastPrice();
   const { token, isLoggedIn } = useAuth();
-  const availableBalance = useUsdcBalance();
+  const { data: balances, refetch: refetchBalances } = useBalances();
+  const availableBalance = useMemo(() => {
+    if (!balances) return 0;
+    const usdc = balances.find(
+      (b) =>
+        b.asset === "USDC" ||
+        b.asset === "USD" ||
+        b.asset.toUpperCase().includes("USD"),
+    );
+    if (usdc) return Math.max(0, usdc.total - usdc.locked);
+    return balances[0] ? Math.max(0, balances[0].total - balances[0].locked) : 0;
+  }, [balances]);
+
   const router = useRouter();
 
   const [form, setForm] = useState<TradeFormState>({
@@ -578,6 +590,9 @@ export function TradePanel() {
           status: "success",
           message: `Order placed — ${order.status.toLowerCase().replace("_", " ")} (${order.id})`,
         });
+        
+        // Refetch balances to show updated locked amount
+        refetchBalances();
       }
     } catch (err) {
       const message =
@@ -590,7 +605,7 @@ export function TradePanel() {
     } finally {
       setSubmitting(false);
     }
-  }, [isLoggedIn, token, quantity, price, form, leverage]);
+  }, [isLoggedIn, token, quantity, price, form, leverage, refetchBalances]);
 
   const isBuy = form.side === OrderSide.Buy;
 

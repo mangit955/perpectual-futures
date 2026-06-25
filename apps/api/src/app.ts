@@ -24,7 +24,7 @@ export function createApiApp(options: ApiAppOptions = {}) {
   const priceCache = options.priceCache ?? null;
 
   const CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": "*", // In production, replace with your frontend domain
     "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
   };
