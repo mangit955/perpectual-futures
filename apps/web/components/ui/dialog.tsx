@@ -11,7 +11,7 @@ function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
-function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
+function DialogTrigger({ ...props }: Omit<DialogPrimitive.Trigger.Props, 'key'>) {
   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
 }
 
