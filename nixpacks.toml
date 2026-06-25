@@ -1,7 +1,0 @@
-[phases.install]
-cmds = ["bun install --frozen-lockfile"]
-
-[phases.build]
-cmds = [
-  "bunx prisma generate --schema ./prisma/schema.prisma"
-]
