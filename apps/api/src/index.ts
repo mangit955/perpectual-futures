@@ -16,6 +16,7 @@ interface ServerData {
 
 const server = Bun.serve<ServerData>({
   port,
+  hostname: "0.0.0.0", // Required for Railway deployment
   fetch(request, server) {
     const url = new URL(request.url);
     
@@ -38,8 +39,8 @@ const server = Bun.serve<ServerData>({
   websocket: wsHandlers,
 });
 
-console.log(`API listening on http://localhost:${port}`);
-console.log(`WebSocket available at ws://localhost:${port}/ws`);
+console.log(`API listening on http://0.0.0.0:${port}`);
+console.log(`WebSocket available at ws://0.0.0.0:${port}/ws`);
 
 if (productionMode) {
   console.log("Production mode enabled; run apps/workers for Redis workers");
