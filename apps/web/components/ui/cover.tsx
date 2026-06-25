@@ -160,6 +160,7 @@ export const Beam = ({
   width?: number;
 } & React.ComponentProps<typeof motion.svg>) => {
   const id = useId();
+  const { className, ...restProps } = svgProps;
 
   return (
     <motion.svg
@@ -169,7 +170,7 @@ export const Beam = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("absolute inset-x-0 w-full", className)}
-      {...svgProps}
+      {...restProps}
     >
       <motion.path
         d={`M0 0.5H${width ?? "600"}`}
