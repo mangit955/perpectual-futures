@@ -1,13 +1,10 @@
 [phases.setup]
-nixPkgs = ["nodejs-20_x", "postgresql"]
+nixPkgs = ["nodejs-20_x"]
 
 [phases.install]
 cmds = ["bun install --frozen-lockfile"]
 
 [phases.build]
 cmds = [
-  "cd packages/db && bunx prisma generate --schema ../../prisma/schema.prisma"
+  "bunx prisma generate --schema ./prisma/schema.prisma"
 ]
-
-[start]
-cmd = "bun run --filter=api dev"
