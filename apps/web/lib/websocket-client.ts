@@ -2,16 +2,39 @@
  * Real WebSocket client for connecting to the backend
  */
 
-// Get WebSocket URL with proper fallback
+// Get WebSocket URL with proper fallback and auto-detection
 const getWebSocketUrl = (): string => {
   if (typeof window !== 'undefined') {
     // Browser environment - check for runtime config
-    const envUrl = process.env.NEXT_PUBLIC_WS_URL;
+    const envWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    
+    // If explicit WS URL is provided, use it
+    if (envWsUrl) {
+      console.log('[WebSocket] Using explicit URL:', envWsUrl);
+      return envWsUrl;
+    }
+    
+    // Try to derive from API URL
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (apiUrl) {
+      try {
+        const url = new URL(apiUrl);
+        // Convert http(s) to ws(s)
+        const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${url.host}/ws`;
+        console.log('[WebSocket] Derived from API URL:', wsUrl);
+        return wsUrl;
+      } catch (e) {
+        console.error('[WebSocket] Failed to parse API URL:', apiUrl, e);
+      }
+    }
+    
+    // Fallback to localhost
     const defaultUrl = "ws://localhost:3000/ws";
-    const url = envUrl || defaultUrl;
-    console.log('[WebSocket] Using URL:', url, '(from env:', envUrl, ')');
-    return url;
+    console.log('[WebSocket] Using default URL:', defaultUrl);
+    return defaultUrl;
   }
+  
   // Server environment
   return process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3000/ws";
 };
