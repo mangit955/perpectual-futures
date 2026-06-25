@@ -4,6 +4,7 @@ import {
   ProductionMatchingWorker,
   ProductionPersistenceWorker,
   RedisStreamBus,
+  RedisOrderBookCache,
   type OutboxPublisherClient,
 } from "../../../packages/runtime/src/index";
 import { PersistenceService, PrismaPersistenceStore } from "../../../packages/db/src/index";
@@ -36,9 +37,9 @@ async function runProductionWorkers(): Promise<void> {
   const client = new PrismaClient({
     datasources: { db: { url: requiredEnv("DATABASE_URL") } },
   });
-  const bus = new RedisStreamBus({
-    redisUrl: requiredEnv("REDIS_URL"),
-  });
+  const redisUrl = requiredEnv("REDIS_URL");
+  const bus = new RedisStreamBus({ redisUrl });
+  const orderBookCache = new RedisOrderBookCache({ redisUrl });
   const role = Bun.env.WORKER_ROLE ?? "all";
   const intervalMs = Number(Bun.env.WORKER_INTERVAL_MS ?? 100);
   const markets = async () => {
@@ -58,6 +59,7 @@ async function runProductionWorkers(): Promise<void> {
     snapshotStore: new FileSnapshotStore(snapshotDir),
     snapshotClient: client,
     snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 60_000),
+    orderBookCache,
   });
   const persistence = new ProductionPersistenceWorker(
     bus,

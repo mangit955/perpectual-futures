@@ -19,6 +19,7 @@ export { InMemoryApiRuntime } from "./api-runtime";
 export { PrismaApiRuntime } from "./prisma-api-runtime";
 export { RedisStreamBus } from "./redis-stream-bus";
 export { RedisPriceCache } from "./price-cache";
+export { RedisOrderBookCache } from "./orderbook-cache";
 export { OutboxPublisher } from "./outbox-publisher";
 export {
   ProductionMatchingWorker,
@@ -55,3 +56,4 @@ export type {
   StreamMessage,
 } from "./types";
 export type { PriceCache, PriceData } from "./price-cache";
+export type { OrderBookCache, OrderBookSnapshot, OrderBookLevel } from "./orderbook-cache";

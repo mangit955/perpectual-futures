@@ -9,6 +9,7 @@ import { PersistenceService } from "../../db/src/index";
 import type { AckingStreamBus } from "./stream";
 import { commandStream, eventStream } from "./stream";
 import type { RuntimeCommand } from "./types";
+import type { OrderBookCache } from "./orderbook-cache";
 
 export interface SnapshotMetadataClient {
   snapshotMetadata: {
@@ -33,6 +34,7 @@ export interface ProductionMatchingWorkerOptions {
   snapshotIntervalMs?: number;
   consumerName?: string;
   clock?: () => number;
+  orderBookCache?: OrderBookCache;
 }
 
 export class ProductionMatchingWorker {
@@ -68,6 +70,11 @@ export class ProductionMatchingWorker {
 
       this.engine.restoreBook(market, orderBook);
       this.lastEventIds.set(market, messages.at(-1)?.id ?? snapshot.lastRedisStreamId);
+      
+      // Publish initial orderbook to Redis cache after recovery
+      if (this.options.orderBookCache) {
+        await this.publishOrderBookToCache(market);
+      }
     }
   }
 
@@ -104,9 +111,33 @@ export class ProductionMatchingWorker {
 
       await this.options.bus.ack(stream, group, acked);
       await this.maybeSnapshot(market);
+      
+      // Publish orderbook to Redis cache after processing
+      if (this.options.orderBookCache && processed > 0) {
+        await this.publishOrderBookToCache(market);
+      }
     }
 
     return processed;
+  }
+
+  private async publishOrderBookToCache(market: string): Promise<void> {
+    if (!this.options.orderBookCache) {
+      return;
+    }
+
+    try {
+      const snapshot = this.engine.getBookSnapshot(market, 20);
+      await this.options.orderBookCache.set(market, {
+        market: snapshot.market,
+        sequence: snapshot.sequence,
+        bids: snapshot.bids,
+        asks: snapshot.asks,
+        timestamp: this.options.clock?.() ?? Date.now(),
+      });
+    } catch (error) {
+      console.error(`Failed to publish orderbook to Redis cache for ${market}:`, error);
+    }
   }
 
   private async maybeSnapshot(market: string): Promise<void> {

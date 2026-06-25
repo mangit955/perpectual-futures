@@ -17,11 +17,13 @@ import type {
   RuntimeUser,
 } from "./types";
 import type { RuntimeCommand } from "./types";
+import type { OrderBookCache } from "./orderbook-cache";
 
 export interface PrismaApiRuntimeOptions {
   client: PrismaApiClient;
   jwtSecret: string;
   clock?: () => number;
+  orderBookCache?: OrderBookCache;
 }
 
 export interface PrismaApiClient {
@@ -480,8 +482,27 @@ export class PrismaApiRuntime implements ApiRuntime {
   }
 
   async getOrderBook(marketId: string, depth?: number) {
-    // For production, we'd need to implement this properly with the matching engine
-    // For now, return empty orderbook
+    // Try to get orderbook from Redis cache
+    if (this.options.orderBookCache) {
+      try {
+        const snapshot = await this.options.orderBookCache.get(marketId);
+        
+        if (snapshot) {
+          // Limit depth if requested
+          const limitedSnapshot = depth ? {
+            ...snapshot,
+            bids: snapshot.bids.slice(0, depth),
+            asks: snapshot.asks.slice(0, depth),
+          } : snapshot;
+          
+          return limitedSnapshot;
+        }
+      } catch (error) {
+        console.error(`Failed to fetch orderbook from Redis cache for ${marketId}:`, error);
+      }
+    }
+    
+    // Fallback to empty orderbook if cache miss or error
     return {
       market: marketId,
       sequence: 0,

@@ -1,4 +1,4 @@
-import { PrismaApiRuntime, RedisPriceCache } from "../../../packages/runtime/src/index";
+import { PrismaApiRuntime, RedisPriceCache, RedisOrderBookCache } from "../../../packages/runtime/src/index";
 import type { PrismaApiClient } from "../../../packages/runtime/src/index";
 import { createApiApp } from "./app";
 
@@ -15,6 +15,7 @@ export async function createProductionApiApp() {
     apiRuntime: new PrismaApiRuntime({
       client,
       jwtSecret,
+      orderBookCache: new RedisOrderBookCache({ redisUrl }),
     }),
     priceCache: new RedisPriceCache({ redisUrl }),
   });
