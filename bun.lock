@@ -5,12 +5,12 @@
     "": {
       "name": "my-turborepo",
       "dependencies": {
-        "@prisma/client": "^6.0.0",
         "jose": "^6.0.0",
       },
       "devDependencies": {
+        "@prisma/client": "6.19.3",
         "prettier": "^3.7.4",
-        "prisma": "^6.0.0",
+        "prisma": "6.19.3",
         "turbo": "^2.9.18",
         "typescript": "5.9.2",
       },

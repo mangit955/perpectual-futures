@@ -9,6 +9,7 @@ Follow this step-by-step guide to deploy your Flux trading platform.
 - [ ] Backend is deployed and accessible via HTTPS
 - [ ] WebSocket endpoint is working (test with `wscat`)
 - [ ] Database (PostgreSQL) is set up and accessible
+- [ ] **Database has been initialized with migrations and seed data**
 - [ ] Redis is set up and accessible
 - [ ] Environment variables are configured on backend:
   - [ ] `DATABASE_URL`
@@ -16,6 +17,9 @@ Follow this step-by-step guide to deploy your Flux trading platform.
   - [ ] `JWT_SECRET`
   - [ ] `PASSWORD_PEPPER`
   - [ ] `RUNTIME_MODE=production`
+  - [ ] `SNAPSHOT_DIR=/app/snapshots`
+  - [ ] `SNAPSHOT_INTERVAL_MS=60000`
+  - [ ] `BINANCE_WS_URL=wss://fstream.binance.com/ws`
 - [ ] Backend `/health` endpoint returns `{"ok":true}`
 - [ ] CORS is configured to allow your frontend domain
 
@@ -35,12 +39,35 @@ Follow this step-by-step guide to deploy your Flux trading platform.
   - Render
   - Fly.io
   - DigitalOcean/AWS/Vercel (requires more setup)
-2. **Deploy backend:**
+
+2. **Provision infrastructure:**
+  - PostgreSQL database
+  - Redis instance
+
+3. **Initialize the database:**
+  
+  **CRITICAL:** Run this BEFORE starting your application:
+  
+  ```bash
+  # Option 1: Use the setup script
+  ./scripts/setup-db.sh
+  
+  # Option 2: Manual setup
+  cd packages/db
+  bun run prisma:generate
+  bun run prisma:deploy
+  bun run db:seed
+  ```
+  
+  This creates all database tables and adds seed data (markets, etc.).
+
+4. **Deploy backend:**
   ```bash
    cd apps/api
    # Follow your provider's deployment instructions
   ```
-3. **Test backend:**
+
+5. **Test backend:**
   ```bash
    curl https://your-backend-url.com/health
    # Should return: {"ok":true}
@@ -162,6 +189,30 @@ Test your deployed application:
      [ ] WebSocket updates working
 
 ## 🐛 Troubleshooting
+
+### Issue: Database Tables Don't Exist
+
+**Symptoms:** 
+- `The table 'public.markets' does not exist in the current database`
+- Application crashes on startup
+- "PrismaClientKnownRequestError" in logs
+
+**Solutions:**
+
+1. The database needs to be initialized. Run:
+   ```bash
+   ./scripts/setup-db.sh
+   ```
+
+2. Or manually:
+   ```bash
+   cd packages/db
+   bun run prisma:generate  # Generate Prisma Client
+   bun run prisma:deploy    # Create tables
+   bun run db:seed          # Add seed data
+   ```
+
+3. Restart your application after database setup
 
 ### Issue: CORS Errors
 

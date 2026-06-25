@@ -12,20 +12,58 @@ This guide will help you deploy the Flux trading platform.
 
 ### Option 1: Railway / Render / Fly.io
 
-1. Deploy the backend from `/apps/api`
-2. Set environment variables:
-  ```
-   NODE_ENV=production
-   PORT=3000
-   RUNTIME_MODE=production
-   DATABASE_URL=your-postgres-url
-   REDIS_URL=your-redis-url
-   JWT_SECRET=your-secret-key
-   PASSWORD_PEPPER=your-pepper-key
-   SNAPSHOT_DIR=/app/snapshots
-   SNAPSHOT_INTERVAL_MS=60000
-  ```
-3. Note down your deployed URL (e.g., `https://flux-api.railway.app`)
+#### Prerequisites
+
+Before deploying, ensure you have:
+- PostgreSQL database provisioned
+- Redis instance provisioned
+- Database credentials ready
+
+#### Step 1: Set Environment Variables
+
+Configure these environment variables in your deployment platform:
+
+```bash
+NODE_ENV=production
+PORT=3000
+RUNTIME_MODE=production
+DATABASE_URL=your-postgres-url
+REDIS_URL=your-redis-url
+JWT_SECRET=your-secret-key
+PASSWORD_PEPPER=your-pepper-key
+SNAPSHOT_DIR=/app/snapshots
+SNAPSHOT_INTERVAL_MS=60000
+BINANCE_WS_URL=wss://fstream.binance.com/ws
+```
+
+#### Step 2: Initialize Database
+
+**IMPORTANT:** The database must be initialized before starting the application.
+
+Add a **build command** or **release command** (depending on your platform):
+
+```bash
+./scripts/setup-db.sh
+```
+
+Or manually run these commands:
+
+```bash
+cd packages/db
+bun run prisma:generate
+bun run prisma:deploy
+bun run db:seed
+```
+
+#### Step 3: Deploy Services
+
+Deploy these services (in order):
+
+1. **API Service**: `bun run apps/api/src/index.ts`
+2. **Workers Service**: `bun run apps/workers/src/index.ts`
+3. **Market Data Service**: `bun run apps/market-data/src/index.ts`
+
+Note down your deployed URL (e.g., `https://flux-api.railway.app`)
 
 ### Option 2: VPS (DigitalOcean, AWS, etc.)
 
@@ -117,6 +155,23 @@ After deployment, verify:
 6. ✅ Real-time updates working
 
 ## Troubleshooting
+
+### Database Tables Don't Exist
+
+**Error:** `The table 'public.markets' does not exist in the current database`
+
+**Solution:** The database hasn't been initialized. Run the setup script:
+
+```bash
+./scripts/setup-db.sh
+```
+
+Or manually:
+```bash
+cd packages/db
+bun run prisma:deploy
+bun run db:seed
+```
 
 ### WebSocket Connection Failed
 
