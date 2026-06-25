@@ -27,6 +27,8 @@ out/
 build
 dist
 
+# Nixpacks
+.nixpacks
 
 # Debug
 npm-debug.log*
