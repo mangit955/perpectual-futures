@@ -1,24 +1,23 @@
 # Quick Troubleshooting Guide
 
-**Problem:** Orders won't cancel in production? Use this guide.
+**Can't cancel orders in production?** Use this guide.
 
 ---
 
-## 🚨 Emergency Fix (5 minutes)
+## 🚨 Emergency Fix (2 steps)
 
 ```bash
-# 1. Clean up stuck messages (use production Redis URL)
-REDIS_URL="rediss://..." bun run cleanup:pel
+# 1. Reset consumer group (use production Redis URL)
+REDIS_URL="rediss://..." bun run reset:consumers
 
-# 2. Restart workers in Railway
-# Go to Railway Dashboard → workers service → Deploy
+# 2. Restart workers in Railway Dashboard
+#    Go to: Railway → workers service → Deploy → Redeploy
+```
 
-# 3. Verify it worked
-bun run diag
-# Look for: pending: 0 ✅
-
-# 4. Test cancellation
-bun run test:cancel https://your-api.railway.app "Bearer YOUR_TOKEN"
+Then verify:
+```bash
+REDIS_URL="..." DATABASE_URL="..." bun run diag:full
+# Look for: Events: >0 messages ✅
 ```
 
 ---
@@ -26,127 +25,59 @@ bun run test:cancel https://your-api.railway.app "Bearer YOUR_TOKEN"
 ## 📊 Check System Health
 
 ```bash
-# Quick check
-bun run diag
+# Full diagnostic
+REDIS_URL="..." DATABASE_URL="..." bun run diag:full
 
-# Real-time monitoring
-REDIS_URL="..." DATABASE_URL="..." bun run monitor
+# Test Redis
+REDIS_URL="..." bun run test:redis
 ```
 
 ---
 
-## 🔍 Diagnostic Decision Tree
+## 🔍 What to Look For
 
-```
-Run: bun run diag
-
-┌─ PENDING > 10?
-│  └─ YES → OutboxPublisher stuck
-│     └─ FIX: Restart workers
-│
-├─ FAILED > 5?
-│  └─ YES → Check worker logs for errors
-│     └─ FIX: Fix error, restart workers
-│
-├─ pending > 100?
-│  └─ YES → PEL buildup
-│     └─ FIX: Run cleanup:prod
-│
-└─ All zeros?
-   └─ ✅ System healthy!
-```
-
----
-
-## 📝 Common Issues
-
-### Issue: Cancel button does nothing
-
-**Quick fix:**
 ```bash
-REDIS_URL="rediss://..." bun run cleanup:pel
-```
+Run: bun run diag:full
 
-### Issue: Orders stuck in PENDING
-
-**Quick fix:**
-```bash
-# Check if workers are running
-curl https://your-workers.railway.app/health
-
-# If not responding, redeploy workers in Railway
-```
-
-### Issue: "Order not found" errors
-
-**Diagnosis:** Order was created in API but not in matching engine
-
-**Fix:**
-```bash
-# 1. Check outbox
-bun run diag
-# Look for PENDING > 0
-
-# 2. If PENDING > 0, restart workers
-# 3. If pending (Redis) > 0, run cleanup
-REDIS_URL="rediss://..." bun run cleanup:pel
+┌─ Events: 0 messages?
+│  └─ ❌ Matching engine not processing
+│     └─ FIX: bun run reset:consumers then restart workers
+│
+├─ Events: >0 messages?
+│  └─ ✅ System healthy!
+│
+├─ Commands > 1000?
+│  └─ ⚠️ Backlog building up
+│     └─ FIX: Check if workers are running
+│
+└─ Recent orders stuck in PENDING?
+   └─ ❌ Workers not processing
+      └─ FIX: Restart workers
 ```
 
 ---
 
 ## 🔧 Available Commands
 
-| Command | What it does | When to use |
-|---------|-------------|-------------|
-| `bun run diag` | Health snapshot | Daily checks |
-| `bun run cleanup:pel` | Clear PEL | Orders won't process |
-| `bun run monitor` | Live dashboard | During incidents |
-| `bun run test:cancel` | E2E test | After fixes |
+| Command | What it does |
+|---------|-------------|
+| `bun run diag:full` | Detailed system diagnostic |
+| `bun run reset:consumers` | Reset Redis consumer groups |
+| `bun run test:redis` | Test Redis connectivity |
+| `bun run cleanup:pel` | Clear stuck messages |
+| `bun run monitor` | Real-time dashboard |
+
+**Note:** All commands need production credentials:
+```bash
+REDIS_URL="rediss://..." DATABASE_URL="postgresql://..." bun run <command>
+```
 
 ---
 
-## 📞 Support Checklist
+## 📚 Documentation
 
-Before asking for help, run these:
-
-```bash
-# 1. System health
-bun run diag
-
-# 2. Cleanup if needed (use production Redis URL)
-REDIS_URL="rediss://..." bun run cleanup:pel
-
-# 3. Test functionality
-bun run test:cancel https://your-api.railway.app "Bearer YOUR_TOKEN"
-```
-
-Then share the output in your support request.
-
----
-
-## 📚 Full Documentation
-
-- [ORDER_CANCELLATION_FIX.md](./ORDER_CANCELLATION_FIX.md) - Complete technical analysis
-- [scripts/README.md](./scripts/README.md) - Detailed tool guide
-
----
-
-## ✅ When Everything Works
-
-You should see:
-```bash
-$ bun run diag
-Outbox Stats: PENDING=0, FAILED=0, PUBLISHED=XXX
-engine.commands.BTC-PERP: pending=0 ✅
-```
-
-And:
-```bash
-$ bun run test:cancel https://your-api.railway.app "Bearer ..."
-✅ SUCCESS! Order was cancelled successfully! 🎉
-```
-
-**If you see this, everything is working correctly!**
+- [FINAL_FIX.md](./FINAL_FIX.md) - Complete fix guide
+- [scripts/README.md](./scripts/README.md) - Detailed tool documentation
 
 ---
 

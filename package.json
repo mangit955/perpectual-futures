@@ -8,9 +8,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "diag": "cd apps/api && bun run diag.ts",
+    "diag:full": "bun run scripts/detailed-diag.ts",
     "cleanup:pel": "bun run scripts/cleanup-pel.ts",
+    "reset:consumers": "bun run scripts/reset-consumer-group.ts",
     "monitor": "bun run scripts/monitor-production.ts",
-    "test:cancel": "bun run scripts/test-cancel-flow.ts"
+    "test:cancel": "bun run scripts/test-cancel-flow.ts",
+    "test:redis": "bun run scripts/test-redis-connection.ts"
   },
   "dependencies": {
     "jose": "^6.0.0"

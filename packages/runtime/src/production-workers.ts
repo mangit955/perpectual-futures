@@ -290,6 +290,8 @@ export class ProductionMatchingWorker {
           } catch (error) {
             // Log error but still ack the message to prevent PEL buildup
             console.error(`[MATCHING] Error processing message ${message.id}:`, error);
+            console.error(`[MATCHING] Message type: ${message.payload.type}`);
+            console.error(`[MATCHING] Command:`, JSON.stringify(message.payload.command));
           }
 
           // ACK immediately after each message to keep PEL as small as possible.
