@@ -86,6 +86,57 @@ export class RedisStreamBus implements AckingStreamBus {
     await this.command("XACK", [stream, group, ...ids]);
   }
 
+  /**
+   * Claim and acknowledge old pending messages for a consumer group.
+   * This helps recover from PEL limit issues by cleaning up messages
+   * that were never acknowledged due to errors.
+   */
+  async claimAndAckPending(
+    stream: string,
+    group: string,
+    consumer: string,
+    minIdleTimeMs = 60000,
+    count = 100,
+  ): Promise<number> {
+    try {
+      // Use XAUTOCLAIM to claim messages that have been idle for too long
+      const result = await this.command("XAUTOCLAIM", [
+        stream,
+        group,
+        consumer,
+        String(minIdleTimeMs),
+        "0-0",
+        "COUNT",
+        String(count),
+      ]);
+
+      // Result format: [nextId, [messages...]]
+      if (!Array.isArray(result) || result.length < 2) {
+        return 0;
+      }
+
+      const messages = result[1];
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return 0;
+      }
+
+      // Extract message IDs and acknowledge them
+      const ids = messages
+        .filter((msg) => Array.isArray(msg) && msg[0])
+        .map((msg) => String(msg[0]));
+
+      if (ids.length > 0) {
+        await this.ack(stream, group, ids);
+        console.log(`[REDIS] Claimed and acked ${ids.length} stale messages from ${stream}`);
+      }
+
+      return ids.length;
+    } catch (error) {
+      console.error(`[REDIS] Error claiming pending messages from ${stream}:`, error);
+      return 0;
+    }
+  }
+
   private async ensureGroup(stream: string, group: string): Promise<void> {
     const key = `${stream}:${group}`;
 

@@ -41,12 +41,16 @@ export class ProductionMatchingWorker {
   readonly engine: MatchingEngine;
   private readonly lastEventIds = new Map<string, string>();
   private readonly lastSnapshotAt = new Map<string, number>();
+  private pendingCleanupComplete = false;
 
   constructor(private readonly options: ProductionMatchingWorkerOptions) {
     this.engine = options.engine ?? new MatchingEngine({ clock: options.clock });
   }
 
   async recover(): Promise<void> {
+    // First, clean up any existing pending entries to recover from PEL limit
+    await this.cleanupPendingEntries();
+
     if (!this.options.snapshotStore) {
       return;
     }
@@ -78,44 +82,104 @@ export class ProductionMatchingWorker {
     }
   }
 
+  /**
+   * Clean up old pending entries that may have accumulated due to errors.
+   * This prevents PEL limit issues by claiming and acknowledging stale messages.
+   */
+  private async cleanupPendingEntries(): Promise<void> {
+    if (this.pendingCleanupComplete) {
+      return;
+    }
+
+    console.log("[MATCHING] Starting pending entries cleanup...");
+    
+    const isBusWithCleanup = 'claimAndAckPending' in this.options.bus;
+    if (!isBusWithCleanup) {
+      console.log("[MATCHING] Bus doesn't support cleanup, skipping");
+      this.pendingCleanupComplete = true;
+      return;
+    }
+
+    for (const market of await this.markets()) {
+      const stream = commandStream(market);
+      const group = `matching-engine:${market}`;
+      const consumer = this.options.consumerName ?? "matching-engine-1";
+
+      let totalCleaned = 0;
+      let batchCleaned = 0;
+
+      // Keep claiming and acking until no more pending messages
+      do {
+        batchCleaned = await (this.options.bus as any).claimAndAckPending(
+          stream,
+          group,
+          consumer,
+          5000, // Claim messages idle for 5+ seconds
+          1000, // Process up to 1000 at a time
+        );
+        totalCleaned += batchCleaned;
+      } while (batchCleaned > 0);
+
+      if (totalCleaned > 0) {
+        console.log(`[MATCHING] Cleaned ${totalCleaned} pending entries for ${market}`);
+      }
+    }
+
+    this.pendingCleanupComplete = true;
+    console.log("[MATCHING] Pending entries cleanup complete");
+  }
+
   async processOnce(): Promise<number> {
     let processed = 0;
 
     for (const market of await this.markets()) {
       const stream = commandStream(market);
       const group = `matching-engine:${market}`;
-      const messages = await this.options.bus.readGroup<RuntimeCommand>(
-        stream,
-        group,
-        this.options.consumerName ?? "matching-engine-1",
-      );
-      const acked: string[] = [];
+      
+      try {
+        const messages = await this.options.bus.readGroup<RuntimeCommand>(
+          stream,
+          group,
+          this.options.consumerName ?? "matching-engine-1",
+        );
+        const acked: string[] = [];
 
-      for (const message of messages) {
-        const events =
-          message.payload.type === "order.created"
-            ? this.engine.submitOrder(message.payload.command)
-            : this.engine.cancelOrder(message.payload.command);
+        for (const message of messages) {
+          try {
+            const events =
+              message.payload.type === "order.created"
+                ? this.engine.submitOrder(message.payload.command)
+                : this.engine.cancelOrder(message.payload.command);
 
-        for (const event of events) {
-          const written = await this.options.bus.append(eventStream(event.market), {
-            type: "engine.event",
-            event,
-          });
-          this.lastEventIds.set(event.market, written.id);
+            for (const event of events) {
+              const written = await this.options.bus.append(eventStream(event.market), {
+                type: "engine.event",
+                event,
+              });
+              this.lastEventIds.set(event.market, written.id);
+            }
+
+            acked.push(message.id);
+            processed += 1;
+          } catch (error) {
+            // Log error but still ack the message to prevent PEL buildup
+            console.error(`[MATCHING] Error processing message ${message.id}:`, error);
+            acked.push(message.id);
+          }
         }
 
-        acked.push(message.id);
-        processed += 1;
-      }
-
-      await this.options.bus.ack(stream, group, acked);
-      await this.maybeSnapshot(market);
-      
-      // Always publish orderbook to Redis cache (not just when processing new orders)
-      // This ensures existing orders in the book are visible even if no new orders come in
-      if (this.options.orderBookCache) {
-        await this.publishOrderBookToCache(market);
+        // Always acknowledge messages, even if there were errors
+        await this.options.bus.ack(stream, group, acked);
+        await this.maybeSnapshot(market);
+        
+        // Always publish orderbook to Redis cache (not just when processing new orders)
+        // This ensures existing orders in the book are visible even if no new orders come in
+        if (this.options.orderBookCache) {
+          await this.publishOrderBookToCache(market);
+        }
+      } catch (error) {
+        // Log top-level errors (like XREADGROUP failures) but continue processing other markets
+        console.error(`[MATCHING] Error processing market ${market}:`, error);
       }
     }
 
@@ -194,23 +258,36 @@ export class ProductionPersistenceWorker {
 
     for (const market of await this.markets()) {
       const stream = eventStream(market);
-      const messages = await this.bus.readGroup<{ type: "engine.event"; event: EngineEvent }>(
-        stream,
-        "persistence-worker",
-        this.consumerName,
-      );
-      const acked: string[] = [];
-
-      for (const message of messages) {
-        await this.service.persistEvent(message.payload.event, {
+      
+      try {
+        const messages = await this.bus.readGroup<{ type: "engine.event"; event: EngineEvent }>(
           stream,
-          streamId: message.id,
-        });
-        acked.push(message.id);
-        processed += 1;
-      }
+          "persistence-worker",
+          this.consumerName,
+        );
+        const acked: string[] = [];
 
-      await this.bus.ack(stream, "persistence-worker", acked);
+        for (const message of messages) {
+          try {
+            await this.service.persistEvent(message.payload.event, {
+              stream,
+              streamId: message.id,
+            });
+            acked.push(message.id);
+            processed += 1;
+          } catch (error) {
+            // Log error but still ack the message to prevent PEL buildup
+            console.error(`[PERSISTENCE] Error processing message ${message.id}:`, error);
+            acked.push(message.id);
+          }
+        }
+
+        // Always acknowledge messages, even if there were errors
+        await this.bus.ack(stream, "persistence-worker", acked);
+      } catch (error) {
+        // Log top-level errors (like XREADGROUP failures) but continue processing other markets
+        console.error(`[PERSISTENCE] Error processing market ${market}:`, error);
+      }
     }
 
     return processed;

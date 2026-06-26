@@ -75,10 +75,8 @@ async function runProductionWorkers(): Promise<void> {
     const matching = new ProductionMatchingWorker({
       bus,
       markets,
-      snapshotStore: undefined, // Disable file snapshots in production - not needed with Redis cache
-      snapshotClient: undefined,
-      snapshotIntervalMs: undefined,
       orderBookCache,
+      // Do not set snapshot options - leave them undefined to disable file snapshots
     });
     console.log("✓ Matching worker created");
     
