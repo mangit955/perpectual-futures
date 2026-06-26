@@ -41,12 +41,12 @@ async function resetConsumerGroup() {
       await redis.xgroup('DESTROY', cmdStream, group);
       console.log(`  ✅ Destroyed consumer group: ${group}`);
       
-      // Recreate from beginning
-      await redis.xgroup('CREATE', cmdStream, group, '0', 'MKSTREAM');
-      console.log(`  ✅ Recreated consumer group from beginning`);
+      // Recreate starting from ID "0-0" to read ALL messages
+      await redis.xgroup('CREATE', cmdStream, group, '0-0', 'MKSTREAM');
+      console.log(`  ✅ Recreated consumer group starting from 0-0`);
       
       const info = await redis.xinfo('GROUPS', cmdStream);
-      console.log(`  ✓ New state:`, info);
+      console.log(`  ✓ Consumer group will now read all messages from beginning`);
       
     } catch (error: any) {
       console.error(`  ❌ Error:`, error.message);
