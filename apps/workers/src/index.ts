@@ -33,58 +33,96 @@ function runLocalWorker(): void {
 }
 
 async function runProductionWorkers(): Promise<void> {
-  const PrismaClient = await loadPrismaClient();
-  const client = new PrismaClient({
-    datasources: { db: { url: requiredEnv("DATABASE_URL") } },
-  });
-  const redisUrl = requiredEnv("REDIS_URL");
-  const bus = new RedisStreamBus({ redisUrl });
-  const orderBookCache = new RedisOrderBookCache({ redisUrl });
-  const role = Bun.env.WORKER_ROLE ?? "all";
-  const intervalMs = Number(Bun.env.WORKER_INTERVAL_MS ?? 100);
-  const markets = async () => {
-    const rows = await client.market.findMany({
-      where: { status: "ACTIVE" },
-      select: { id: true },
-      orderBy: { id: "asc" },
+  console.log("🚀 Starting production workers...");
+  console.log(`Environment: RUNTIME_MODE=${Bun.env.RUNTIME_MODE}`);
+  console.log(`Database URL: ${Bun.env.DATABASE_URL ? 'Set' : 'Missing'}`);
+  console.log(`Redis URL: ${Bun.env.REDIS_URL ? 'Set' : 'Missing'}`);
+  
+  try {
+    const PrismaClient = await loadPrismaClient();
+    console.log("✓ Prisma Client loaded");
+    
+    const client = new PrismaClient({
+      datasources: { db: { url: requiredEnv("DATABASE_URL") } },
     });
+    console.log("✓ Database client created");
+    
+    const redisUrl = requiredEnv("REDIS_URL");
+    const bus = new RedisStreamBus({ redisUrl });
+    console.log("✓ Redis stream bus created");
+    
+    const orderBookCache = new RedisOrderBookCache({ redisUrl });
+    console.log("✓ OrderBook cache created");
+    
+    const role = Bun.env.WORKER_ROLE ?? "all";
+    const intervalMs = Number(Bun.env.WORKER_INTERVAL_MS ?? 100);
+    
+    const markets = async () => {
+      const rows = await client.market.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true },
+        orderBy: { id: "asc" },
+      });
 
-    return rows.map((row: { id: string }) => row.id);
-  };
-  const outbox = new OutboxPublisher(client, bus);
-  const snapshotDir = Bun.env.SNAPSHOT_DIR ?? "/app/snapshots";
-  const matching = new ProductionMatchingWorker({
-    bus,
-    markets,
-    snapshotStore: new FileSnapshotStore(snapshotDir),
-    snapshotClient: client,
-    snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 60_000),
-    orderBookCache,
-  });
-  const persistence = new ProductionPersistenceWorker(
-    bus,
-    new PersistenceService(new PrismaPersistenceStore(client)),
-    markets,
-  );
+      return rows.map((row: { id: string }) => row.id);
+    };
+    
+    // Test database connection
+    const activeMarkets = await markets();
+    console.log(`✓ Database connected, found ${activeMarkets.length} active markets:`, activeMarkets);
+    
+    const outbox = new OutboxPublisher(client, bus);
+    const snapshotDir = Bun.env.SNAPSHOT_DIR ?? "/app/snapshots";
+    const matching = new ProductionMatchingWorker({
+      bus,
+      markets,
+      snapshotStore: new FileSnapshotStore(snapshotDir),
+      snapshotClient: client,
+      snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 60_000),
+      orderBookCache,
+    });
+    console.log("✓ Matching worker created");
+    
+    const persistence = new ProductionPersistenceWorker(
+      bus,
+      new PersistenceService(new PrismaPersistenceStore(client)),
+      markets,
+    );
+    console.log("✓ Persistence worker created");
 
-  await matching.recover();
-  console.log(`Production workers started with role=${role}, interval=${intervalMs}ms`);
+    console.log("🔄 Recovering matching engine state...");
+    await matching.recover();
+    console.log("✓ Recovery complete");
+    
+    console.log(`✅ Production workers started with role=${role}, interval=${intervalMs}ms`);
 
-  setInterval(async () => {
-    try {
-      if (role === "all" || role === "outbox") {
-        await outbox.publishOnce();
+    setInterval(async () => {
+      try {
+        let processed = 0;
+        if (role === "all" || role === "outbox") {
+          const count = await outbox.publishOnce();
+          processed += count;
+        }
+        if (role === "all" || role === "matching") {
+          const count = await matching.processOnce();
+          processed += count;
+        }
+        if (role === "all" || role === "persistence") {
+          const count = await persistence.processOnce();
+          processed += count;
+        }
+        
+        if (processed > 0) {
+          console.log(`[${new Date().toISOString()}] Processed ${processed} items`);
+        }
+      } catch (error) {
+        console.error("[ERROR] Worker iteration failed:", error);
       }
-      if (role === "all" || role === "matching") {
-        await matching.processOnce();
-      }
-      if (role === "all" || role === "persistence") {
-        await persistence.processOnce();
-      }
-    } catch (error) {
-      console.error("worker iteration failed", error);
-    }
-  }, intervalMs);
+    }, intervalMs);
+  } catch (error) {
+    console.error("❌ Failed to start production workers:", error);
+    throw error;
+  }
 }
 
 type WorkerPrismaClient = PrismaClientLike &
