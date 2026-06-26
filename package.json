@@ -13,7 +13,9 @@
     "reset:consumers": "bun run scripts/reset-consumer-group.ts",
     "monitor": "bun run scripts/monitor-production.ts",
     "test:cancel": "bun run scripts/test-cancel-flow.ts",
-    "test:redis": "bun run scripts/test-redis-connection.ts"
+    "test:redis": "bun run scripts/test-redis-connection.ts",
+    "init:redis": "bun run scripts/init-redis-groups.ts",
+    "verify:db": "bun run scripts/verify-db.ts"
   },
   "dependencies": {
     "jose": "^6.0.0"
