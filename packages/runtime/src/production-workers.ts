@@ -1,5 +1,6 @@
 import {
   MatchingEngine,
+  OrderBook,
   recoverOrderBookFromSnapshot,
   type EngineEvent,
   type SnapshotStore,
@@ -26,6 +27,19 @@ export interface SnapshotMetadataClient {
   };
 }
 
+/**
+ * Minimal Prisma-like client for recovering open orders from the database.
+ * Only needs read access to the `order` table.
+ */
+export interface OrderRecoveryClient {
+  order: {
+    findMany(args: {
+      where: { marketId: string; status: { in: string[] } };
+      orderBy: { createdAt: "asc" };
+    }): Promise<Array<Record<string, unknown>>>;
+  };
+}
+
 export interface ProductionMatchingWorkerOptions {
   bus: AckingStreamBus;
   engine?: MatchingEngine;
@@ -36,6 +50,8 @@ export interface ProductionMatchingWorkerOptions {
   consumerName?: string;
   clock?: () => number;
   orderBookCache?: OrderBookCache;
+  /** Prisma client for recovering open orders from the database on startup */
+  orderRecoveryClient?: OrderRecoveryClient;
 }
 
 export class ProductionMatchingWorker {
@@ -52,35 +68,144 @@ export class ProductionMatchingWorker {
     // First, clean up any existing pending entries to recover from PEL limit
     await this.cleanupPendingEntries();
 
-    if (!this.options.snapshotStore) {
-      return;
+    // Try snapshot-based recovery first
+    if (this.options.snapshotStore) {
+      let snapshotRecovered = false;
+
+      for (const market of await this.markets()) {
+        const snapshot = await this.options.snapshotStore.readLatest(market);
+
+        if (!snapshot) {
+          continue;
+        }
+
+        const messages = await this.options.bus.readAfter<{ type: "engine.event"; event: EngineEvent }>(
+          eventStream(market),
+          snapshot.lastRedisStreamId,
+        );
+        const orderBook = recoverOrderBookFromSnapshot({
+          snapshot,
+          eventsAfterSnapshot: messages.map((message) => message.payload.event),
+          clock: this.options.clock,
+        });
+
+        this.engine.restoreBook(market, orderBook);
+        this.lastEventIds.set(market, messages.at(-1)?.id ?? snapshot.lastRedisStreamId);
+        snapshotRecovered = true;
+        
+        // Publish initial orderbook to Redis cache after recovery
+        if (this.options.orderBookCache) {
+          await this.publishOrderBookToCache(market);
+        }
+      }
+
+      if (snapshotRecovered) {
+        return;
+      }
     }
 
-    for (const market of await this.markets()) {
-      const snapshot = await this.options.snapshotStore.readLatest(market);
+    // Fallback: recover from database (essential for ephemeral filesystems like Railway)
+    if (this.options.orderRecoveryClient) {
+      await this.recoverFromDatabase();
+    }
+  }
 
-      if (!snapshot) {
+  /**
+   * Recover the in-memory orderbook from the database by loading all
+   * OPEN and PARTIALLY_FILLED limit orders and injecting them directly
+   * into the matching engine.
+   *
+   * This is critical for deployments on ephemeral filesystems (e.g. Railway)
+   * where file-based snapshots don't survive restarts.
+   */
+  private async recoverFromDatabase(): Promise<void> {
+    const client = this.options.orderRecoveryClient;
+    if (!client) return;
+
+    console.log("[MATCHING] Recovering orderbook from database...");
+
+    for (const market of await this.markets()) {
+      const rows = await client.order.findMany({
+        where: {
+          marketId: market,
+          status: { in: ["OPEN", "PARTIALLY_FILLED"] },
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      if (rows.length === 0) {
+        console.log(`[MATCHING] No open orders to recover for ${market}`);
         continue;
       }
 
-      const messages = await this.options.bus.readAfter<{ type: "engine.event"; event: EngineEvent }>(
-        eventStream(market),
-        snapshot.lastRedisStreamId,
-      );
-      const orderBook = recoverOrderBookFromSnapshot({
-        snapshot,
-        eventsAfterSnapshot: messages.map((message) => message.payload.event),
-        clock: this.options.clock,
-      });
+      // Build a snapshot that OrderBook.fromSnapshot() can consume.
+      // Group orders by side and price level.
+      const bidLevels = new Map<number, Array<{ orderId: string; userId: string; market: string; side: "buy" | "sell"; type: "limit"; qtyLots: number; remainingQtyLots: number; priceTicks: number; status: "OPEN" | "PARTIALLY_FILLED"; timeInForce: "GTC" | "IOC"; reduceOnly: boolean; postOnly: boolean; createdAt: number; sequence: number }>>();
+      const askLevels = new Map<number, typeof bidLevels extends Map<number, infer V> ? V : never>();
 
-      this.engine.restoreBook(market, orderBook);
-      this.lastEventIds.set(market, messages.at(-1)?.id ?? snapshot.lastRedisStreamId);
-      
-      // Publish initial orderbook to Redis cache after recovery
+      let maxSequence = 0;
+
+      for (const row of rows) {
+        const side = String(row.side).toLowerCase() as "buy" | "sell";
+        const price = Number(row.price ?? 0);
+        const type = String(row.type).toLowerCase() as "limit" | "market";
+
+        // Only recover limit orders (market orders shouldn't be resting)
+        if (type !== "limit" || price === 0) continue;
+
+        maxSequence += 1;
+        const orderEntry = {
+          orderId: String(row.id),
+          userId: String(row.userId),
+          market,
+          side,
+          type: "limit" as const,
+          qtyLots: Number(row.quantity ?? 0),
+          remainingQtyLots: Number(row.remainingQuantity ?? 0),
+          priceTicks: price,
+          status: (String(row.status) === "PARTIALLY_FILLED" ? "PARTIALLY_FILLED" : "OPEN") as "OPEN" | "PARTIALLY_FILLED",
+          timeInForce: (String(row.timeInForce ?? "GTC")) as "GTC" | "IOC",
+          reduceOnly: Boolean(row.reduceOnly),
+          postOnly: Boolean(row.postOnly),
+          createdAt: row.createdAt instanceof Date ? row.createdAt.getTime() : Number(row.createdAt ?? 0),
+          sequence: maxSequence,
+        };
+
+        const levels = side === "buy" ? bidLevels : askLevels;
+        const existing = levels.get(price) ?? [];
+        existing.push(orderEntry);
+        levels.set(price, existing);
+      }
+
+      const buildPriceLevels = (levels: typeof bidLevels) =>
+        [...levels.entries()].map(([priceTicks, orders]) => ({
+          priceTicks,
+          totalQtyLots: orders.reduce((sum, o) => sum + o.remainingQtyLots, 0),
+          orders,
+        }));
+
+      const snapshot = {
+        market,
+        sequence: maxSequence,
+        bids: buildPriceLevels(bidLevels),
+        asks: buildPriceLevels(askLevels),
+      };
+
+      const book = OrderBook.fromSnapshot(snapshot, this.options.clock);
+      this.engine.restoreBook(market, book);
+
+      console.log(
+        `[MATCHING] Recovered ${rows.length} open orders for ${market} ` +
+        `(${bidLevels.size} bid levels, ${askLevels.size} ask levels)`,
+      );
+
+      // Publish recovered orderbook to Redis cache immediately
       if (this.options.orderBookCache) {
         await this.publishOrderBookToCache(market);
       }
     }
+
+    console.log("[MATCHING] Database recovery complete");
   }
 
   /**

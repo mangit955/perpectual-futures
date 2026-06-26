@@ -41,6 +41,7 @@ export type {
   OutboxRow,
 } from "./outbox-publisher";
 export type {
+  OrderRecoveryClient,
   ProductionMatchingWorkerOptions,
   SnapshotMetadataClient,
 } from "./production-workers";

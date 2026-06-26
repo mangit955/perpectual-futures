@@ -76,7 +76,7 @@ async function runProductionWorkers(): Promise<void> {
       bus,
       markets,
       orderBookCache,
-      // Do not set snapshot options - leave them undefined to disable file snapshots
+      orderRecoveryClient: client,
     });
     console.log("✓ Matching worker created");
     
