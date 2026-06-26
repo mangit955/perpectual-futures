@@ -21,14 +21,28 @@ export class FileSnapshotStore implements SnapshotStore {
   constructor(private readonly snapshotDir: string) {}
 
   async write(snapshot: StoredOrderBookSnapshot): Promise<string> {
-    await mkdir(this.snapshotDir, { recursive: true });
+    try {
+      await mkdir(this.snapshotDir, { recursive: true });
+    } catch (error) {
+      console.error(`Failed to create snapshot directory ${this.snapshotDir}:`, error);
+      throw error;
+    }
 
     const finalPath = this.pathFor(snapshot.market);
     const tempPath = `${finalPath}.${process.pid}.${Date.now()}.tmp`;
     const payload = `${JSON.stringify(snapshot, null, 2)}\n`;
 
-    await writeFile(tempPath, payload, "utf8");
-    await rename(tempPath, finalPath);
+    try {
+      await writeFile(tempPath, payload, "utf8");
+      await rename(tempPath, finalPath);
+    } catch (error) {
+      console.error(`Failed to write snapshot ${finalPath}:`, error);
+      // Clean up temp file if it exists
+      try {
+        await writeFile(tempPath, "", "utf8").catch(() => {});
+      } catch {}
+      throw error;
+    }
 
     return finalPath;
   }

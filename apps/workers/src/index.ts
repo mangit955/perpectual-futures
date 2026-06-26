@@ -72,13 +72,13 @@ async function runProductionWorkers(): Promise<void> {
     console.log(`✓ Database connected, found ${activeMarkets.length} active markets:`, activeMarkets);
     
     const outbox = new OutboxPublisher(client, bus);
-    const snapshotDir = Bun.env.SNAPSHOT_DIR ?? "/app/snapshots";
+    const snapshotDir = Bun.env.SNAPSHOT_DIR ?? "/tmp/snapshots";
     const matching = new ProductionMatchingWorker({
       bus,
       markets,
       snapshotStore: new FileSnapshotStore(snapshotDir),
       snapshotClient: client,
-      snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 60_000),
+      snapshotIntervalMs: Number(Bun.env.SNAPSHOT_INTERVAL_MS ?? 3600_000), // 1 hour - snapshots are for recovery, not needed frequently
       orderBookCache,
     });
     console.log("✓ Matching worker created");
