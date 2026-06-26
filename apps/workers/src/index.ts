@@ -38,6 +38,23 @@ async function runProductionWorkers(): Promise<void> {
   console.log(`Database URL: ${Bun.env.DATABASE_URL ? 'Set' : 'Missing'}`);
   console.log(`Redis URL: ${Bun.env.REDIS_URL ? 'Set' : 'Missing'}`);
   
+  // Start health check server for Railway
+  const port = Number(Bun.env.PORT ?? 3000);
+  let healthStatus = { status: "starting", lastPoll: new Date().toISOString(), processedTotal: 0 };
+  
+  Bun.serve({
+    port,
+    hostname: "0.0.0.0",
+    fetch(request) {
+      const url = new URL(request.url);
+      if (url.pathname === "/health") {
+        return Response.json(healthStatus);
+      }
+      return new Response("Workers Service - Use /health endpoint", { status: 200 });
+    },
+  });
+  console.log(`✓ Health check server listening on port ${port}`);
+  
   try {
     const PrismaClient = await loadPrismaClient();
     console.log("✓ Prisma Client loaded");
@@ -92,6 +109,7 @@ async function runProductionWorkers(): Promise<void> {
     console.log("✓ Recovery complete");
     
     console.log(`✅ Production workers started with role=${role}, interval=${intervalMs}ms`);
+    healthStatus.status = "running";
 
     // Track consecutive errors for exponential backoff.
     // Without backoff, a persistent error (e.g. PEL limit) generates
@@ -117,11 +135,16 @@ async function runProductionWorkers(): Promise<void> {
         
         consecutiveErrors = 0; // reset on success
         
+        // Update health status
+        healthStatus.lastPoll = new Date().toISOString();
+        healthStatus.processedTotal += processed;
+        
         if (processed > 0) {
-          console.log(`[${new Date().toISOString()}] Processed ${processed} items`);
+          console.log(`[${new Date().toISOString()}] Processed ${processed} items (total: ${healthStatus.processedTotal})`);
         }
       } catch (error) {
         consecutiveErrors += 1;
+        healthStatus.status = `error (streak=${consecutiveErrors})`;
         console.error(`[ERROR] Worker iteration failed (streak=${consecutiveErrors}):`, error);
       }
 
