@@ -15,7 +15,7 @@ import ClickSpark from "../ClickSpark";
 import { useAuth } from "@/lib/auth-context";
 
 const githubHref = "https://github.com/mangit955/perpectual-futures";
-const docsHref = "/docs";
+const docsHref = "https://flux-docs-three.vercel.app/docs";
 
 const navItems = [
   { label: "Features", href: "#features", id: "features" },
@@ -180,7 +180,7 @@ export function Navbar() {
             />
           </a>
           <motion.a
-            href={docsHref}
+            href="https://flux-docs-three.vercel.app/docs"
             whileHover="hover"
             className={cn(
               buttonVariants({ variant: "secondary", size: "sm" }),
@@ -339,7 +339,7 @@ export function Navbar() {
                   buttonVariants({ variant: "secondary", size: "default" }),
                   "mt-2 w-full",
                 )}
-                href="/docs"
+                href="https://flux-docs-three.vercel.app/docs"
                 onClick={() => setMobileOpen(false)}
               >
                 View Docs

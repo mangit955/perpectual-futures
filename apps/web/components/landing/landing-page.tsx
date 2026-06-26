@@ -281,7 +281,7 @@ function HeroSection() {
           </motion.div>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
-            href="/docs"
+            href="https://flux-docs-three.vercel.app/docs"
           >
             View Documentation
             <BookOpen className="h-4 w-4" aria-hidden="true" />
@@ -790,7 +790,7 @@ function CtaSection() {
           </a>
           <a
             className={cn(buttonVariants({ variant: "secondary", size: "lg" }))}
-            href="/docs"
+            href="https://flux-docs-three.vercel.app/docs"
           >
             Read Docs
             <BookOpen className="h-4 w-4" aria-hidden="true" />

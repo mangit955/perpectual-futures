@@ -128,7 +128,7 @@ export class ProductionMatchingWorker {
       const rows = await client.order.findMany({
         where: {
           marketId: market,
-          status: { in: ["OPEN", "PARTIALLY_FILLED"] },
+          status: { in: ["PENDING", "OPEN", "PARTIALLY_FILLED"] },
         },
         orderBy: { createdAt: "asc" },
       });
