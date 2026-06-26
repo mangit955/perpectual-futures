@@ -112,8 +112,9 @@ export class ProductionMatchingWorker {
       await this.options.bus.ack(stream, group, acked);
       await this.maybeSnapshot(market);
       
-      // Publish orderbook to Redis cache after processing
-      if (this.options.orderBookCache && processed > 0) {
+      // Always publish orderbook to Redis cache (not just when processing new orders)
+      // This ensures existing orders in the book are visible even if no new orders come in
+      if (this.options.orderBookCache) {
         await this.publishOrderBookToCache(market);
       }
     }
