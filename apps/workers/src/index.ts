@@ -93,7 +93,13 @@ async function runProductionWorkers(): Promise<void> {
     
     console.log(`✅ Production workers started with role=${role}, interval=${intervalMs}ms`);
 
-    setInterval(async () => {
+    // Track consecutive errors for exponential backoff.
+    // Without backoff, a persistent error (e.g. PEL limit) generates
+    // hundreds of log lines per second and wastes Redis quota.
+    let consecutiveErrors = 0;
+    const MAX_BACKOFF_MS = 5000;
+
+    const poll = async () => {
       try {
         let processed = 0;
         if (role === "all" || role === "outbox") {
@@ -109,13 +115,25 @@ async function runProductionWorkers(): Promise<void> {
           processed += count;
         }
         
+        consecutiveErrors = 0; // reset on success
+        
         if (processed > 0) {
           console.log(`[${new Date().toISOString()}] Processed ${processed} items`);
         }
       } catch (error) {
-        console.error("[ERROR] Worker iteration failed:", error);
+        consecutiveErrors += 1;
+        console.error(`[ERROR] Worker iteration failed (streak=${consecutiveErrors}):`, error);
       }
-    }, intervalMs);
+
+      // Schedule next poll with backoff on errors
+      const delay = consecutiveErrors > 0
+        ? Math.min(intervalMs * Math.pow(2, consecutiveErrors), MAX_BACKOFF_MS)
+        : intervalMs;
+      setTimeout(poll, delay);
+    };
+
+    // Kick off the first poll
+    setTimeout(poll, intervalMs);
   } catch (error) {
     console.error("❌ Failed to start production workers:", error);
     throw error;

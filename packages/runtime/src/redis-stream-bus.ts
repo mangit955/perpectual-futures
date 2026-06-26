@@ -62,18 +62,26 @@ export class RedisStreamBus implements AckingStreamBus {
       await this.ensureGroup(stream, group);
     }
 
-    const rows = await this.command("XREADGROUP", [
+    // Upstash enforces a PEL limit of 1000 per consumer.
+    // Use a small COUNT (default 10) and non-blocking reads (BLOCK 0)
+    // to minimise PEL pressure.  We already poll on a setInterval so
+    // blocking is redundant.
+    const count = options.count ?? 10;
+    const blockMs = options.blockMs ?? 0;
+
+    const args = [
       "GROUP",
       group,
       consumer,
       "COUNT",
-      String(options.count ?? 100),
-      "BLOCK",
-      String(options.blockMs ?? 1000),
+      String(count),
+      ...(blockMs > 0 ? ["BLOCK", String(blockMs)] : []),
       "STREAMS",
       stream,
       ">",
-    ]);
+    ];
+
+    const rows = await this.command("XREADGROUP", args);
 
     return decodeXReadGroupRows(stream, rows);
   }
@@ -84,6 +92,22 @@ export class RedisStreamBus implements AckingStreamBus {
     }
 
     await this.command("XACK", [stream, group, ...ids]);
+  }
+
+  /**
+   * Trim a stream to approximately `maxLen` entries using XTRIM … MAXLEN ~.
+   * The ~ (tilde) lets Redis trim a bit less aggressively for performance.
+   */
+  async trimStream(stream: string, maxLen = 1000): Promise<void> {
+    await this.command("XTRIM", [stream, "MAXLEN", "~", String(maxLen)]);
+  }
+
+  /**
+   * Returns true if the error is an Upstash PEL-limit error.
+   */
+  static isPelLimitError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    return error.message.includes("Pending Entries List limit");
   }
 
   /**

@@ -10,6 +10,7 @@ import type { AckingStreamBus } from "./stream";
 import { commandStream, eventStream } from "./stream";
 import type { RuntimeCommand } from "./types";
 import type { OrderBookCache } from "./orderbook-cache";
+import { RedisStreamBus } from "./redis-stream-bus";
 
 export interface SnapshotMetadataClient {
   snapshotMetadata: {
@@ -135,14 +136,15 @@ export class ProductionMatchingWorker {
     for (const market of await this.markets()) {
       const stream = commandStream(market);
       const group = `matching-engine:${market}`;
+      const consumer = this.options.consumerName ?? "matching-engine-1";
       
       try {
         const messages = await this.options.bus.readGroup<RuntimeCommand>(
           stream,
           group,
-          this.options.consumerName ?? "matching-engine-1",
+          consumer,
+          { count: 10 },
         );
-        const acked: string[] = [];
 
         for (const message of messages) {
           try {
@@ -159,27 +161,38 @@ export class ProductionMatchingWorker {
               this.lastEventIds.set(event.market, written.id);
             }
 
-            acked.push(message.id);
             processed += 1;
           } catch (error) {
             // Log error but still ack the message to prevent PEL buildup
             console.error(`[MATCHING] Error processing message ${message.id}:`, error);
-            acked.push(message.id);
           }
+
+          // ACK immediately after each message to keep PEL as small as possible.
+          // Upstash enforces a 1000 PEL limit per consumer; batching acks risks
+          // hitting that limit under load.
+          await this.options.bus.ack(stream, group, [message.id]);
         }
 
-        // Always acknowledge messages, even if there were errors
-        await this.options.bus.ack(stream, group, acked);
         await this.maybeSnapshot(market);
         
-        // Always publish orderbook to Redis cache (not just when processing new orders)
-        // This ensures existing orders in the book are visible even if no new orders come in
+        // Always publish orderbook to Redis cache
         if (this.options.orderBookCache) {
           await this.publishOrderBookToCache(market);
         }
+
+        // Trim the command stream to prevent unbounded growth
+        if ('trimStream' in this.options.bus) {
+          await (this.options.bus as any).trimStream(stream, 1000);
+        }
       } catch (error) {
-        // Log top-level errors (like XREADGROUP failures) but continue processing other markets
-        console.error(`[MATCHING] Error processing market ${market}:`, error);
+        // If this is a PEL limit error, try to recover by cleaning up pending entries
+        if (RedisStreamBus.isPelLimitError(error)) {
+          console.warn(`[MATCHING] PEL limit hit for ${market}, running emergency cleanup...`);
+          this.pendingCleanupComplete = false;
+          await this.cleanupPendingEntries();
+        } else {
+          console.error(`[MATCHING] Error processing market ${market}:`, error);
+        }
       }
     }
 
@@ -264,8 +277,8 @@ export class ProductionPersistenceWorker {
           stream,
           "persistence-worker",
           this.consumerName,
+          { count: 10 },
         );
-        const acked: string[] = [];
 
         for (const message of messages) {
           try {
@@ -273,20 +286,32 @@ export class ProductionPersistenceWorker {
               stream,
               streamId: message.id,
             });
-            acked.push(message.id);
             processed += 1;
           } catch (error) {
             // Log error but still ack the message to prevent PEL buildup
             console.error(`[PERSISTENCE] Error processing message ${message.id}:`, error);
-            acked.push(message.id);
           }
+
+          // ACK immediately per message — same rationale as matching worker
+          await this.bus.ack(stream, "persistence-worker", [message.id]);
         }
 
-        // Always acknowledge messages, even if there were errors
-        await this.bus.ack(stream, "persistence-worker", acked);
+        // Trim the event stream to prevent unbounded growth
+        if ('trimStream' in this.bus) {
+          await (this.bus as any).trimStream(stream, 1000);
+        }
       } catch (error) {
-        // Log top-level errors (like XREADGROUP failures) but continue processing other markets
-        console.error(`[PERSISTENCE] Error processing market ${market}:`, error);
+        if (RedisStreamBus.isPelLimitError(error)) {
+          console.warn(`[PERSISTENCE] PEL limit hit for ${market}, attempting cleanup...`);
+          // Try to claim and ack pending messages
+          if ('claimAndAckPending' in this.bus) {
+            await (this.bus as any).claimAndAckPending(
+              stream, "persistence-worker", this.consumerName, 5000, 500,
+            );
+          }
+        } else {
+          console.error(`[PERSISTENCE] Error processing market ${market}:`, error);
+        }
       }
     }
 
