@@ -217,42 +217,8 @@ export class ProductionMatchingWorker {
       return;
     }
 
-    console.log("[MATCHING] Starting pending entries cleanup...");
-    
-    const isBusWithCleanup = 'claimAndAckPending' in this.options.bus;
-    if (!isBusWithCleanup) {
-      console.log("[MATCHING] Bus doesn't support cleanup, skipping");
-      this.pendingCleanupComplete = true;
-      return;
-    }
-
-    for (const market of await this.markets()) {
-      const stream = commandStream(market);
-      const group = `matching-engine:${market}`;
-      const consumer = this.options.consumerName ?? "matching-engine-1";
-
-      let totalCleaned = 0;
-      let batchCleaned = 0;
-
-      // Keep claiming and acking until no more pending messages
-      do {
-        batchCleaned = await (this.options.bus as any).claimAndAckPending(
-          stream,
-          group,
-          consumer,
-          5000, // Claim messages idle for 5+ seconds
-          1000, // Process up to 1000 at a time
-        );
-        totalCleaned += batchCleaned;
-      } while (batchCleaned > 0);
-
-      if (totalCleaned > 0) {
-        console.log(`[MATCHING] Cleaned ${totalCleaned} pending entries for ${market}`);
-      }
-    }
-
+    console.log("[MATCHING] Skipping pending entries cleanup (disabled)");
     this.pendingCleanupComplete = true;
-    console.log("[MATCHING] Pending entries cleanup complete");
   }
 
   async processOnce(): Promise<number> {

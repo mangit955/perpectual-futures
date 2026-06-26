@@ -14,8 +14,13 @@
     "monitor": "bun run scripts/monitor-production.ts",
     "test:cancel": "bun run scripts/test-cancel-flow.ts",
     "test:redis": "bun run scripts/test-redis-connection.ts",
+    "test:production": "bun run scripts/test-production-order.ts",
     "init:redis": "bun run scripts/init-redis-groups.ts",
-    "verify:db": "bun run scripts/verify-db.ts"
+    "verify:db": "bun run scripts/verify-db.ts",
+    "check:redis": "bun run scripts/check-redis-streams.ts",
+    "claim:pending": "bun run scripts/claim-pending-messages.ts",
+    "test:workers": "bun run scripts/test-workers-local.ts",
+    "debug:streams": "bun run scripts/debug-stream-messages.ts"
   },
   "dependencies": {
     "jose": "^6.0.0"

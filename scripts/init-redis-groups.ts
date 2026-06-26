@@ -25,8 +25,8 @@ const STREAMS = [
   { stream: "engine.commands.ETH-PERP", group: "matching-engine:ETH-PERP" },
   
   // Matching engine event streams (for persistence worker)
-  { stream: "engine.events.BTC-PERP", group: "persistence:BTC-PERP" },
-  { stream: "engine.events.ETH-PERP", group: "persistence:ETH-PERP" },
+  { stream: "engine.events.BTC-PERP", group: "persistence-worker" },
+  { stream: "engine.events.ETH-PERP", group: "persistence-worker" },
   
   // Order outbox stream (from DB to matching)
   { stream: "order.outbox", group: "matching-engine" },
