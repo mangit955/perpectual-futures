@@ -78,7 +78,7 @@ export class RedisStreamBus implements AckingStreamBus {
       ...(blockMs > 0 ? ["BLOCK", String(blockMs)] : []),
       "STREAMS",
       stream,
-      ">",
+      ">", // This reads only NEW messages after last-delivered-id
     ];
 
     const rows = await this.command("XREADGROUP", args);
