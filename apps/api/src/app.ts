@@ -24,13 +24,14 @@ export function createApiApp(options: ApiAppOptions = {}) {
   const priceCache = options.priceCache ?? null;
 
   // Register orderbook snapshot provider
-  hub.onSubscribe("orderbook", (connectionId, topic) => {
+  hub.onSubscribe("orderbook", async (connectionId, topic) => {
     // Extract market from topic (format: "orderbook:MARKET-ID")
     const marketMatch = topic.match(/^orderbook:(.+)$/);
     if (marketMatch) {
       const marketId = marketMatch[1];
       try {
-        const snapshot = exchangeRuntime.engine.getBookSnapshot(marketId, 20);
+        // Use runtime.getOrderBook which will fetch from Redis cache in production
+        const snapshot = await runtime.getOrderBook(marketId, 20);
         hub.sendSnapshot(connectionId, topic, snapshot, snapshot.sequence);
       } catch (error) {
         console.error(`Failed to send orderbook snapshot for ${marketId}:`, error);

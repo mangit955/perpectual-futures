@@ -49,23 +49,24 @@ export function useOrderBook(): OrderBookData | null {
 
   useEffect(() => {
     if (USE_REAL_API) {
-      if (wsOrderBook) {
-        // Convert WebSocket data to frontend format
-        const frontendBook = convertOrderBookToFrontend(wsOrderBook);
-        setOrderBook(frontendBook);
-      } else {
-        // Fetch initial orderbook data from API
-        const fetchOrderBook = async () => {
-          try {
-            const backendBook = await apiGetOrderBook(DEFAULT_MARKET_ID, 15);
-            const frontendBook = convertOrderBookToFrontend(backendBook);
-            setOrderBook(frontendBook);
-          } catch (error) {
-            console.error("Failed to fetch orderbook:", error);
-          }
-        };
-        fetchOrderBook();
-      }
+      // Fetch initial orderbook data from API
+      const fetchOrderBook = async () => {
+        try {
+          const backendBook = await apiGetOrderBook(DEFAULT_MARKET_ID, 15);
+          const frontendBook = convertOrderBookToFrontend(backendBook);
+          setOrderBook(frontendBook);
+        } catch (error) {
+          console.error("Failed to fetch orderbook:", error);
+        }
+      };
+
+      // Fetch immediately
+      fetchOrderBook();
+
+      // Poll every 2 seconds as fallback (WebSocket updates will override this)
+      const interval = setInterval(fetchOrderBook, 2000);
+
+      return () => clearInterval(interval);
     } else {
       // Use mock data
       setOrderBook(feed.getInitialOrderBook());
@@ -74,7 +75,15 @@ export function useOrderBook(): OrderBookData | null {
       });
       return unsub;
     }
-  }, [feed, wsOrderBook]);
+  }, [feed]);
+
+  // Update from WebSocket if available (takes priority over polling)
+  useEffect(() => {
+    if (USE_REAL_API && wsOrderBook) {
+      const frontendBook = convertOrderBookToFrontend(wsOrderBook);
+      setOrderBook(frontendBook);
+    }
+  }, [wsOrderBook]);
 
   return orderBook;
 }
